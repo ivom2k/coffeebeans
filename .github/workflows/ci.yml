@@ -28,3 +28,41 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+
+  # Runs alongside `check`. Migrating and seeding an empty database on every push proves
+  # the migrations and the seed still work from scratch.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      # A throwaway Postgres that lives only as long as this job, the same major version as
+      # docker-compose.yml. Publishing 5432 on all interfaces is fine on a disposable
+      # runner VM, unlike on the server.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: kohvioad
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: kohvioad
+        ports:
+          - 5432:5432
+        # Steps start only once the service reports healthy.
+        options: >-
+          --health-cmd "pg_isready -U kohvioad -d kohvioad"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Not secrets: the credentials only reach a database that exists for this job alone.
+    env:
+      NUXT_DATABASE_URL: postgres://kohvioad:ci-only-password@localhost:5432/kohvioad
+      TEST_DATABASE_URL: postgres://kohvioad:ci-only-password@localhost:5432/kohvioad_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm test

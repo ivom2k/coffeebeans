@@ -1,0 +1,38 @@
+# Local development database. Nuxt runs natively on Windows and connects through
+# 127.0.0.1:5432. The production Compose setup grows out of this file.
+
+# Fixes the project name, so container, network and volume names don't depend on the
+# folder the repository was cloned into (the volume becomes kohvioad_pgdata).
+name: kohvioad
+
+services:
+  db:
+    # Major version only: pulling again picks up minor releases (bug and security
+    # fixes), while a major upgrade stays deliberate, since it needs a dump and restore.
+    image: postgres:18
+    environment:
+      # Compose reads these from .env. `:?` stops it with an error when a value is
+      # missing, instead of initialising the database with an empty password.
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # Loopback only. A bare "5432:5432" listens on every interface, and Docker's
+      # iptables rules bypass the firewall.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # A named volume outlives the container, so the data survives `docker compose down`.
+      # From Postgres 18 the image keeps its data in /var/lib/postgresql/18/docker and
+      # refuses to start with a volume on the old /var/lib/postgresql/data path.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      # A running container only means the process started; pg_isready checks that the
+      # server accepts connections. `$$` keeps Compose from substituting the variables,
+      # so the shell inside the container reads them from its own environment.
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

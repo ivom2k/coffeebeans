@@ -7,7 +7,8 @@ This is a solo learning project. When you touch infrastructure (Dockerfile, Comp
 ## Stack
 
 - Nuxt 4 with Vue `<script setup lang="ts">` and TypeScript, as one project: UI under `app/`, API as Nitro routes under `server/api/`. Public pages are server-rendered. Only server code touches the database.
-- PostgreSQL 16+ through Drizzle ORM, with drizzle-kit migrations.
+- PostgreSQL 18 through Drizzle ORM 0.45 and the `pg` driver, with drizzle-kit migrations. Local Postgres runs in `docker-compose.yml`.
+- Tests: Vitest.
 - Google sign-in (OIDC) via `nuxt-auth-utils`, sessions in sealed cookies.
 - UI components: Nuxt UI v4. It sets up Tailwind v4 itself, so don't add a separate Tailwind module.
 - `@nuxtjs/i18n` and `@nuxtjs/seo`; sharp for image processing.
@@ -22,7 +23,8 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 
 - `app/` runs during SSR and in the browser: `pages/` is the router (folder path = URL), `layouts/` holds the page shells, plus `components/<feature>/`, `composables/use*.ts`, and `middleware/` for route guards (UX only, never access control).
 - `shared/` holds plain TypeScript imported by both sides: DTOs in `shared/types/`, pure helpers (GTIN, score formatting) in `shared/utils/`. It imports from neither `app/` nor `server/`.
-- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks), `utils/` (cross-cutting helpers such as the db client and `requireUser()`).
+- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks), `utils/` (cross-cutting helpers such as `useDb()` and `requireUser()`).
+- Relative imports under `server/db/` end in `.ts` and use no path aliases: the seed script runs on Node's built-in TypeScript support, which resolves neither extensionless imports nor aliases.
 - UI text lives in `i18n/locales/`.
 - Handlers stay thin: validate, check auth, call one feature function, map the result to a status code. Feature functions are plain async functions that take `db` (or a transaction) as their first argument. No classes, repositories or service layers.
 - Import feature modules explicitly; only `server/utils/` is auto-imported. Public handlers import only feature code that reads the summary views; the signed-in user's own rows go through `server/api/me/`.
@@ -35,8 +37,12 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - `npm run check`: lint (any warning fails) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
 - `npm run lint:fix`: fixes lint findings and formatting. ESLint Stylistic is the formatter; there is no Prettier.
 - `npm run build`: production build.
+- `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction.
+- `npm run db:generate`: a migration from changes in `server/db/schema/`. Add `-- --custom --name=<name>` for an empty file for hand-written SQL. Review the generated SQL before migrating.
+- `npm run db:migrate`: applies pending migrations to `NUXT_DATABASE_URL`.
+- `npm run db:seed`: the fictional seed, into a freshly migrated database only.
 
-Test and database migration scripts arrive with the database setup. Keep this section in step with `package.json`.
+The database commands and `npm test` need the Compose Postgres running (`docker compose up -d`, which Ivo runs). Keep this section in step with `package.json`.
 
 ## Git
 

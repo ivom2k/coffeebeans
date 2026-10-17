@@ -17,7 +17,18 @@ export default defineNuxtConfig({
     // Light mode only for the MVP: the design has no dark theme yet.
     colorMode: false,
   },
+  runtimeConfig: {
+    // Server-only. Set at runtime through NUXT_DATABASE_URL, so the built image holds no credentials.
+    databaseUrl: '',
+  },
   compatibilityDate: '2025-07-15',
+  typescript: {
+    // Root-level tool configs aren't in any generated tsconfig; this makes `npm run check` cover them.
+    // Paths are relative to .nuxt/, where the tsconfig is generated.
+    nodeTsConfig: {
+      include: ['../drizzle.config.ts', '../vitest.config.ts'],
+    },
+  },
   eslint: {
     config: {
       // ESLint Stylistic formats the code, so there is no separate formatter.

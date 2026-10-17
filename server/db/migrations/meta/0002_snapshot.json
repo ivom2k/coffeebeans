@@ -1,0 +1,1903 @@
+{
+  "id": "b8dafa3d-32fc-4e02-8b61-2287282b8d4b",
+  "prevId": "2e4429df-ae50-47ed-8aa9-bdae69ee7f4e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.bean_surface": {
+      "name": "bean_surface",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(32)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "bean_surface_code_chk": {
+          "name": "bean_surface_code_chk",
+          "value": "\"bean_surface\".\"code\" ~ '^[A-Z][A-Z0-9_]*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.machine_issue": {
+      "name": "machine_issue",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(32)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "machine_issue_code_chk": {
+          "name": "machine_issue_code_chk",
+          "value": "\"machine_issue\".\"code\" ~ '^[A-Z][A-Z0-9_]*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.species": {
+      "name": "species",
+      "schema": "",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(32)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "species_code_chk": {
+          "name": "species_code_chk",
+          "value": "\"species\".\"code\" ~ '^[A-Z][A-Z0-9_]*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.app_user": {
+      "name": "app_user",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "app_user_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "auth_provider": {
+          "name": "auth_provider",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_subject": {
+          "name": "external_subject",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'et'"
+        },
+        "role": {
+          "name": "role",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'USER'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "app_user_identity_uq": {
+          "name": "app_user_identity_uq",
+          "columns": [
+            "auth_provider",
+            "external_subject"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "app_user_provider_chk": {
+          "name": "app_user_provider_chk",
+          "value": "\"app_user\".\"auth_provider\" IN ('GOOGLE')"
+        },
+        "app_user_role_chk": {
+          "name": "app_user_role_chk",
+          "value": "\"app_user\".\"role\" IN ('USER', 'ADMIN')"
+        },
+        "app_user_locale_chk": {
+          "name": "app_user_locale_chk",
+          "value": "\"app_user\".\"locale\" IN ('et', 'ru')"
+        },
+        "app_user_identity_chk": {
+          "name": "app_user_identity_chk",
+          "value": "\n    (\"app_user\".\"deleted_at\" IS NULL AND \"app_user\".\"auth_provider\" IS NOT NULL AND \"app_user\".\"external_subject\" IS NOT NULL)\n    OR (\"app_user\".\"deleted_at\" IS NOT NULL AND \"app_user\".\"auth_provider\" IS NULL AND \"app_user\".\"external_subject\" IS NULL)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.brand": {
+      "name": "brand",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "brand_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "char(2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "brand_name_uq": {
+          "name": "brand_name_uq",
+          "columns": [
+            "name"
+          ],
+          "nullsNotDistinct": false
+        },
+        "brand_slug_uq": {
+          "name": "brand_slug_uq",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "brand_slug_chk": {
+          "name": "brand_slug_chk",
+          "value": "\"brand\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "brand_country_chk": {
+          "name": "brand_country_chk",
+          "value": "\"brand\".\"country_code\" ~ '^[A-Z]{2}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean": {
+      "name": "coffee_bean",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "coffee_bean_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "brand_id": {
+          "name": "brand_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(200)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "roast_level": {
+          "name": "roast_level",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_path": {
+          "name": "image_path",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DRAFT'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coffee_bean_brand_id_brand_id_fk": {
+          "name": "coffee_bean_brand_id_brand_id_fk",
+          "tableFrom": "coffee_bean",
+          "columnsFrom": [
+            "brand_id"
+          ],
+          "tableTo": "brand",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "coffee_bean_brand_name_uq": {
+          "name": "coffee_bean_brand_name_uq",
+          "columns": [
+            "brand_id",
+            "name"
+          ],
+          "nullsNotDistinct": false
+        },
+        "coffee_bean_slug_uq": {
+          "name": "coffee_bean_slug_uq",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "coffee_bean_slug_chk": {
+          "name": "coffee_bean_slug_chk",
+          "value": "\"coffee_bean\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "coffee_bean_roast_level_chk": {
+          "name": "coffee_bean_roast_level_chk",
+          "value": "\"coffee_bean\".\"roast_level\" BETWEEN 1 AND 5"
+        },
+        "coffee_bean_status_chk": {
+          "name": "coffee_bean_status_chk",
+          "value": "\"coffee_bean\".\"status\" IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean_origin": {
+      "name": "coffee_bean_origin",
+      "schema": "",
+      "columns": {
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "country_code": {
+          "name": "country_code",
+          "type": "char(2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coffee_bean_origin_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "coffee_bean_origin_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "coffee_bean_origin",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "coffee_bean_origin_pkey": {
+          "name": "coffee_bean_origin_pkey",
+          "columns": [
+            "coffee_bean_id",
+            "country_code"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "coffee_bean_origin_country_chk": {
+          "name": "coffee_bean_origin_country_chk",
+          "value": "\"coffee_bean_origin\".\"country_code\" ~ '^[A-Z]{2}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean_package": {
+      "name": "coffee_bean_package",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "coffee_bean_package_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "size_g": {
+          "name": "size_g",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gtin": {
+          "name": "gtin",
+          "type": "char(14)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "coffee_bean_package_coffee_bean_id_idx": {
+          "name": "coffee_bean_package_coffee_bean_id_idx",
+          "columns": [
+            {
+              "expression": "coffee_bean_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "coffee_bean_package_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "coffee_bean_package_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "coffee_bean_package",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "coffee_bean_package_gtin_uq": {
+          "name": "coffee_bean_package_gtin_uq",
+          "columns": [
+            "gtin"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "coffee_bean_package_size_chk": {
+          "name": "coffee_bean_package_size_chk",
+          "value": "\"coffee_bean_package\".\"size_g\" > 0"
+        },
+        "coffee_bean_package_gtin_chk": {
+          "name": "coffee_bean_package_gtin_chk",
+          "value": "\"coffee_bean_package\".\"gtin\" ~ '^[0-9]{14}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean_slug_redirect": {
+      "name": "coffee_bean_slug_redirect",
+      "schema": "",
+      "columns": {
+        "old_slug": {
+          "name": "old_slug",
+          "type": "varchar(200)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "coffee_bean_slug_redirect_bean_idx": {
+          "name": "coffee_bean_slug_redirect_bean_idx",
+          "columns": [
+            {
+              "expression": "coffee_bean_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "coffee_bean_slug_redirect_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "coffee_bean_slug_redirect_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "coffee_bean_slug_redirect",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean_species": {
+      "name": "coffee_bean_species",
+      "schema": "",
+      "columns": {
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "species_code": {
+          "name": "species_code",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "percentage": {
+          "name": "percentage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coffee_bean_species_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "coffee_bean_species_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "coffee_bean_species",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "coffee_bean_species_species_code_species_code_fk": {
+          "name": "coffee_bean_species_species_code_species_code_fk",
+          "tableFrom": "coffee_bean_species",
+          "columnsFrom": [
+            "species_code"
+          ],
+          "tableTo": "species",
+          "columnsTo": [
+            "code"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "coffee_bean_species_pkey": {
+          "name": "coffee_bean_species_pkey",
+          "columns": [
+            "coffee_bean_id",
+            "species_code"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "coffee_bean_species_pct_chk": {
+          "name": "coffee_bean_species_pct_chk",
+          "value": "\"coffee_bean_species\".\"percentage\" BETWEEN 1 AND 100"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.coffee_bean_translation": {
+      "name": "coffee_bean_translation",
+      "schema": "",
+      "columns": {
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "locale": {
+          "name": "locale",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "coffee_bean_translation_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "coffee_bean_translation_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "coffee_bean_translation",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "coffee_bean_translation_pkey": {
+          "name": "coffee_bean_translation_pkey",
+          "columns": [
+            "coffee_bean_id",
+            "locale"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "coffee_bean_translation_locale_chk": {
+          "name": "coffee_bean_translation_locale_chk",
+          "value": "\"coffee_bean_translation\".\"locale\" IN ('et', 'ru')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.machine_manufacturer": {
+      "name": "machine_manufacturer",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "machine_manufacturer_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "machine_manufacturer_name_uq": {
+          "name": "machine_manufacturer_name_uq",
+          "columns": [
+            "name"
+          ],
+          "nullsNotDistinct": false
+        },
+        "machine_manufacturer_slug_uq": {
+          "name": "machine_manufacturer_slug_uq",
+          "columns": [
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "machine_manufacturer_slug_chk": {
+          "name": "machine_manufacturer_slug_chk",
+          "value": "\"machine_manufacturer\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.machine_model": {
+      "name": "machine_model",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "machine_model_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "manufacturer_id": {
+          "name": "manufacturer_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "machine_model_manufacturer_id_machine_manufacturer_id_fk": {
+          "name": "machine_model_manufacturer_id_machine_manufacturer_id_fk",
+          "tableFrom": "machine_model",
+          "columnsFrom": [
+            "manufacturer_id"
+          ],
+          "tableTo": "machine_manufacturer",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "machine_model_manufacturer_name_uq": {
+          "name": "machine_model_manufacturer_name_uq",
+          "columns": [
+            "manufacturer_id",
+            "name"
+          ],
+          "nullsNotDistinct": false
+        },
+        "machine_model_manufacturer_slug_uq": {
+          "name": "machine_model_manufacturer_slug_uq",
+          "columns": [
+            "manufacturer_id",
+            "slug"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "machine_model_slug_chk": {
+          "name": "machine_model_slug_chk",
+          "value": "\"machine_model\".\"slug\" ~ '^[a-z0-9]+(-[a-z0-9]+)*$'"
+        },
+        "machine_model_kind_chk": {
+          "name": "machine_model_kind_chk",
+          "value": "\"machine_model\".\"kind\" IN ('AUTOMATIC', 'PORTAFILTER')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.user_machine": {
+      "name": "user_machine",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "user_machine_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "machine_model_id": {
+          "name": "machine_model_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nickname": {
+          "name": "nickname",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_machine_user_id_idx": {
+          "name": "user_machine_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "user_machine_user_id_app_user_id_fk": {
+          "name": "user_machine_user_id_app_user_id_fk",
+          "tableFrom": "user_machine",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "app_user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "user_machine_machine_model_id_machine_model_id_fk": {
+          "name": "user_machine_machine_model_id_machine_model_id_fk",
+          "tableFrom": "user_machine",
+          "columnsFrom": [
+            "machine_model_id"
+          ],
+          "tableTo": "machine_model",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.rating": {
+      "name": "rating",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "rating_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "machine_model_id": {
+          "name": "machine_model_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "score": {
+          "name": "score",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "perceived_bitterness": {
+          "name": "perceived_bitterness",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "perceived_roast_character": {
+          "name": "perceived_roast_character",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "perceived_crema": {
+          "name": "perceived_crema",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "perceived_strength": {
+          "name": "perceived_strength",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bean_surface_code": {
+          "name": "bean_surface_code",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "had_machine_issues": {
+          "name": "had_machine_issues",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "private_note": {
+          "name": "private_note",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "rating_coffee_bean_id_idx": {
+          "name": "rating_coffee_bean_id_idx",
+          "columns": [
+            {
+              "expression": "coffee_bean_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "rating_machine_model_id_idx": {
+          "name": "rating_machine_model_id_idx",
+          "columns": [
+            {
+              "expression": "machine_model_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "rating_user_id_app_user_id_fk": {
+          "name": "rating_user_id_app_user_id_fk",
+          "tableFrom": "rating",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "app_user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "rating_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "rating_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "rating",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "rating_machine_model_id_machine_model_id_fk": {
+          "name": "rating_machine_model_id_machine_model_id_fk",
+          "tableFrom": "rating",
+          "columnsFrom": [
+            "machine_model_id"
+          ],
+          "tableTo": "machine_model",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "rating_bean_surface_code_bean_surface_code_fk": {
+          "name": "rating_bean_surface_code_bean_surface_code_fk",
+          "tableFrom": "rating",
+          "columnsFrom": [
+            "bean_surface_code"
+          ],
+          "tableTo": "bean_surface",
+          "columnsTo": [
+            "code"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "rating_user_bean_uq": {
+          "name": "rating_user_bean_uq",
+          "columns": [
+            "user_id",
+            "coffee_bean_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "rating_score_chk": {
+          "name": "rating_score_chk",
+          "value": "\"rating\".\"score\" BETWEEN 1 AND 5"
+        },
+        "rating_bitterness_chk": {
+          "name": "rating_bitterness_chk",
+          "value": "\"rating\".\"perceived_bitterness\" BETWEEN 1 AND 5"
+        },
+        "rating_roast_character_chk": {
+          "name": "rating_roast_character_chk",
+          "value": "\"rating\".\"perceived_roast_character\" BETWEEN 1 AND 5"
+        },
+        "rating_crema_chk": {
+          "name": "rating_crema_chk",
+          "value": "\"rating\".\"perceived_crema\" BETWEEN 1 AND 5"
+        },
+        "rating_strength_chk": {
+          "name": "rating_strength_chk",
+          "value": "\"rating\".\"perceived_strength\" BETWEEN 1 AND 5"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.rating_machine_issue": {
+      "name": "rating_machine_issue",
+      "schema": "",
+      "columns": {
+        "rating_id": {
+          "name": "rating_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "machine_issue_code": {
+          "name": "machine_issue_code",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "rating_machine_issue_rating_id_rating_id_fk": {
+          "name": "rating_machine_issue_rating_id_rating_id_fk",
+          "tableFrom": "rating_machine_issue",
+          "columnsFrom": [
+            "rating_id"
+          ],
+          "tableTo": "rating",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "rating_machine_issue_machine_issue_code_machine_issue_code_fk": {
+          "name": "rating_machine_issue_machine_issue_code_machine_issue_code_fk",
+          "tableFrom": "rating_machine_issue",
+          "columnsFrom": [
+            "machine_issue_code"
+          ],
+          "tableTo": "machine_issue",
+          "columnsTo": [
+            "code"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "rating_machine_issue_pkey": {
+          "name": "rating_machine_issue_pkey",
+          "columns": [
+            "rating_id",
+            "machine_issue_code"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_watched_coffee_bean": {
+      "name": "user_watched_coffee_bean",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_watched_coffee_bean_bean_idx": {
+          "name": "user_watched_coffee_bean_bean_idx",
+          "columns": [
+            {
+              "expression": "coffee_bean_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "user_watched_coffee_bean_user_id_app_user_id_fk": {
+          "name": "user_watched_coffee_bean_user_id_app_user_id_fk",
+          "tableFrom": "user_watched_coffee_bean",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "app_user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "user_watched_coffee_bean_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "user_watched_coffee_bean_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "user_watched_coffee_bean",
+          "columnsFrom": [
+            "coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {
+        "user_watched_coffee_bean_pkey": {
+          "name": "user_watched_coffee_bean_pkey",
+          "columns": [
+            "user_id",
+            "coffee_bean_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.suggestion": {
+      "name": "suggestion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "suggestion_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "suggestion_type": {
+          "name": "suggestion_type",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "details": {
+          "name": "details",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "image_path": {
+          "name": "image_path",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resulting_coffee_bean_id": {
+          "name": "resulting_coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resulting_machine_model_id": {
+          "name": "resulting_machine_model_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_reason": {
+          "name": "review_reason",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "review_note": {
+          "name": "review_note",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reviewed_at": {
+          "name": "reviewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "result_seen_at": {
+          "name": "result_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "suggestion_user_id_idx": {
+          "name": "suggestion_user_id_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "suggestion_pending_idx": {
+          "name": "suggestion_pending_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"suggestion\".\"status\" = 'PENDING'",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "suggestion_user_id_app_user_id_fk": {
+          "name": "suggestion_user_id_app_user_id_fk",
+          "tableFrom": "suggestion",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "app_user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        },
+        "suggestion_resulting_coffee_bean_id_coffee_bean_id_fk": {
+          "name": "suggestion_resulting_coffee_bean_id_coffee_bean_id_fk",
+          "tableFrom": "suggestion",
+          "columnsFrom": [
+            "resulting_coffee_bean_id"
+          ],
+          "tableTo": "coffee_bean",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "suggestion_resulting_machine_model_id_machine_model_id_fk": {
+          "name": "suggestion_resulting_machine_model_id_machine_model_id_fk",
+          "tableFrom": "suggestion",
+          "columnsFrom": [
+            "resulting_machine_model_id"
+          ],
+          "tableTo": "machine_model",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "suggestion_type_chk": {
+          "name": "suggestion_type_chk",
+          "value": "\"suggestion\".\"suggestion_type\" IN ('COFFEE_BEAN', 'MACHINE_MODEL')"
+        },
+        "suggestion_status_chk": {
+          "name": "suggestion_status_chk",
+          "value": "\"suggestion\".\"status\" IN ('PENDING', 'APPROVED', 'REJECTED', 'DUPLICATE')"
+        },
+        "suggestion_details_chk": {
+          "name": "suggestion_details_chk",
+          "value": "jsonb_typeof(\"suggestion\".\"details\") = 'object'"
+        },
+        "suggestion_image_chk": {
+          "name": "suggestion_image_chk",
+          "value": "\"suggestion\".\"image_path\" IS NULL OR \"suggestion\".\"status\" = 'PENDING'"
+        },
+        "suggestion_result_chk": {
+          "name": "suggestion_result_chk",
+          "value": "\n    (\"suggestion\".\"suggestion_type\" = 'COFFEE_BEAN' AND \"suggestion\".\"resulting_machine_model_id\" IS NULL)\n    OR (\"suggestion\".\"suggestion_type\" = 'MACHINE_MODEL' AND \"suggestion\".\"resulting_coffee_bean_id\" IS NULL)"
+        },
+        "suggestion_target_chk": {
+          "name": "suggestion_target_chk",
+          "value": "\n    (\"suggestion\".\"status\" IN ('APPROVED', 'DUPLICATE'))\n    = (\"suggestion\".\"resulting_coffee_bean_id\" IS NOT NULL OR \"suggestion\".\"resulting_machine_model_id\" IS NOT NULL)"
+        },
+        "suggestion_reason_chk": {
+          "name": "suggestion_reason_chk",
+          "value": "(\"suggestion\".\"status\" = 'REJECTED') = (\"suggestion\".\"review_reason\" IS NOT NULL)"
+        },
+        "suggestion_reason_code_chk": {
+          "name": "suggestion_reason_code_chk",
+          "value": "\"suggestion\".\"review_reason\" IN ('NOT_WHOLE_BEANS', 'NOT_SOLD_IN_ESTONIA', 'NOT_ENOUGH_INFO', 'OTHER')"
+        },
+        "suggestion_note_chk": {
+          "name": "suggestion_note_chk",
+          "value": "\"suggestion\".\"review_note\" IS NULL OR \"suggestion\".\"status\" <> 'PENDING'"
+        },
+        "suggestion_reviewed_chk": {
+          "name": "suggestion_reviewed_chk",
+          "value": "(\"suggestion\".\"status\" = 'PENDING') = (\"suggestion\".\"reviewed_at\" IS NULL)"
+        },
+        "suggestion_seen_chk": {
+          "name": "suggestion_seen_chk",
+          "value": "\n    \"suggestion\".\"result_seen_at\" IS NULL OR (\"suggestion\".\"reviewed_at\" IS NOT NULL AND \"suggestion\".\"result_seen_at\" >= \"suggestion\".\"reviewed_at\")"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.feedback": {
+      "name": "feedback",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigint",
+          "primaryKey": true,
+          "notNull": true,
+          "identity": {
+            "name": "feedback_id_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "9223372036854775807",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "message": {
+          "name": "message",
+          "type": "varchar(1000)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "page_path": {
+          "name": "page_path",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'NEW'"
+        },
+        "ip_hmac": {
+          "name": "ip_hmac",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "feedback_new_idx": {
+          "name": "feedback_new_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "where": "\"feedback\".\"status\" = 'NEW'",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "feedback_user_id_app_user_id_fk": {
+          "name": "feedback_user_id_app_user_id_fk",
+          "tableFrom": "feedback",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "app_user",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "set null"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "feedback_status_chk": {
+          "name": "feedback_status_chk",
+          "value": "\"feedback\".\"status\" IN ('NEW', 'READ', 'DONE')"
+        },
+        "feedback_message_chk": {
+          "name": "feedback_message_chk",
+          "value": "length(btrim(\"feedback\".\"message\")) > 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "views": {
+    "public.coffee_bean_machine_issue_summary": {
+      "name": "coffee_bean_machine_issue_summary",
+      "schema": "public",
+      "columns": {
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "machine_kind": {
+          "name": "machine_kind",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "manufacturer_id": {
+          "name": "manufacturer_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "answered_count": {
+          "name": "answered_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "with_issues_count": {
+          "name": "with_issues_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "materialized": false,
+      "isExisting": true
+    },
+    "public.coffee_bean_rating_summary": {
+      "name": "coffee_bean_rating_summary",
+      "schema": "public",
+      "columns": {
+        "coffee_bean_id": {
+          "name": "coffee_bean_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rating_count": {
+          "name": "rating_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "raw_mean": {
+          "name": "raw_mean",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "shrunk_mean": {
+          "name": "shrunk_mean",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_1_count": {
+          "name": "score_1_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_2_count": {
+          "name": "score_2_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_3_count": {
+          "name": "score_3_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_4_count": {
+          "name": "score_4_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "score_5_count": {
+          "name": "score_5_count",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "materialized": false,
+      "isExisting": true
+    }
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
