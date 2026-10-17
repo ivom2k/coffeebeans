@@ -31,7 +31,12 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 
 ## Commands
 
-The Nuxt project is scaffolded (`npm run dev` starts it), but the workflow is still settling. Once it has, list the scripts here (dev, build, typecheck, lint, test, migration generate and apply) and keep this section in step with `package.json`.
+- `npm run dev`: dev server at http://localhost:3000.
+- `npm run check`: lint (any warning fails) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
+- `npm run lint:fix`: fixes lint findings and formatting. ESLint Stylistic is the formatter; there is no Prettier.
+- `npm run build`: production build.
+
+Test and database migration scripts arrive with the database setup. Keep this section in step with `package.json`.
 
 ## Git
 
