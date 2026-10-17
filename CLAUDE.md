@@ -13,7 +13,8 @@ This is a solo learning project. When you touch infrastructure (Dockerfile, Comp
 - `@nuxtjs/i18n` and `@nuxtjs/seo`; sharp for image processing.
 - Production: Docker Compose on one VPS behind Caddy. CI/CD: GitHub Actions.
 - Development happens on Windows and production on Linux, so `package.json` scripts must run on both (no `rm -rf`, no inline `VAR=value`).
-- Not decided yet, so ask before choosing or installing: the validation library (Zod or Valibot) and what runs scheduled cleanup (a Nitro task or a cron container). Ask before adding any other dependency as well.
+- Zod for schema validation.
+- Not decided yet, so ask before choosing or installing: what runs scheduled cleanup (a Nitro task or a cron container). Ask before adding any other dependency as well.
 
 ## Layout
 
@@ -30,7 +31,11 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 
 ## Commands
 
-Nothing is scaffolded yet. Once the Nuxt project exists, list its scripts here (dev, build, typecheck, lint, test, migration generate and apply) and keep this section in step with `package.json`.
+The Nuxt project is scaffolded (`npm run dev` starts it), but the workflow is still settling. Once it has, list the scripts here (dev, build, typecheck, lint, test, migration generate and apply) and keep this section in step with `package.json`.
+
+## Git
+
+Solo project: commits go straight to `main`, with no feature branches or pull requests.
 
 ## Rules
 
@@ -76,6 +81,7 @@ Nothing is scaffolded yet. Once the Nuxt project exists, list its scripts here (
 - Functional style: pure functions, immutable data, composition over classes. Keep side effects at the edges (server handlers, composables, event handlers).
 - Vue: Composition API only; type-based `defineProps`, `defineEmits` and `defineModel`; `shallowRef` for primitives; props down, events up; composables return readonly state plus explicit actions.
 - Never use `v-html` on user-supplied text (feedback, suggestions, notes).
+- Colours, the font and radii are theme tokens in `app/assets/css/main.css` and `app/app.config.ts`. Components use Nuxt UI's semantic classes (`text-muted`, `bg-default`, `border-default`, `text-primary`), never hex values. Light mode only for the MVP (`ui.colorMode: false`).
 - Validate every request body, query and route parameter at the API boundary with a schema. `suggestion.details` is a discriminated union on `suggestion_type`.
 - Accessible widgets (dropdowns, dialogs, the segment control) come from Nuxt UI. Where it has no matching component (it has no toggle group, which the sliders need), use the Reka UI primitive it is built on. Never hand-roll them.
 - Use Nuxt UI v4 component names: `UFormField`, `UDropdownMenu` and `USwitch`, not the v2 names `UFormGroup`, `UDropdown` and `UToggle`.

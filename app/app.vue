@@ -1,7 +1,11 @@
+<script setup lang="ts">
+import { et } from '@nuxt/ui/locale';
+</script>
+
 <template>
-  <UApp>
-    <div>
-      <span>coffeebeans</span>
-    </div>
+  <UApp :locale="et">
+    <NuxtLayout>
+      <NuxtPage />
+    </NuxtLayout>
   </UApp>
 </template>

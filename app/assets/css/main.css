@@ -1,2 +1,50 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
+
+/* Brand tokens from the Rukkilill UI canvas. Components use Nuxt UI's semantic
+   classes (text-muted, bg-default, text-primary), never these values directly. */
+@theme static {
+  --font-sans: 'Onest', sans-serif;
+
+  /* The canvas defines 50, 300, 700 and 800; the other shades are interpolated in OKLCH. */
+  --color-cornflower-50: #e8edfb;
+  --color-cornflower-100: #cad6f8;
+  --color-cornflower-200: #acbff5;
+  --color-cornflower-300: #8fa8f0;
+  --color-cornflower-400: #7894e2;
+  --color-cornflower-500: #617fd4;
+  --color-cornflower-600: #4b6bc5;
+  --color-cornflower-700: #3557b7;
+  --color-cornflower-800: #2a4699;
+  --color-cornflower-900: #1f3576;
+  --color-cornflower-950: #12214d;
+}
+
+/* Unlayered, so these win over Nuxt UI's defaults in @layer theme.
+   That is safe only while colour mode is off (nuxt.config.ts). */
+:root {
+  /* Nuxt UI's default shade 500 is too light for text on white; 700 gives 6.6:1. */
+  --ui-primary: var(--ui-color-primary-700);
+
+  /* Buttons and inputs (rounded-md = 1.5x) get the canvas's 12px corners, cards (rounded-lg) 16px. */
+  --ui-radius: 0.5rem;
+  --ui-container: 70rem;
+
+  --ui-text: #1b1a1f;
+  --ui-text-highlighted: #1b1a1f;
+  --ui-text-toned: #4a4f5c;
+  --ui-text-muted: #5b6070;
+  --ui-bg-muted: #f7f8fc;
+  --ui-bg-elevated: #eceef3;
+  --ui-border: #d3d7e3;
+  --ui-border-muted: #e3e7f2;
+  /* Form field outlines need 3:1 against white; this is 3.4:1. */
+  --ui-border-accented: #858b9c;
+}
+
+/* The canvas puts white header and cards on a tinted ground; Nuxt UI's body default is white. */
+@layer base {
+  body {
+    @apply bg-muted;
+  }
+}
