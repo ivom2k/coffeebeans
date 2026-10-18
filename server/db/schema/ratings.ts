@@ -73,7 +73,7 @@ export const coffeeBeanRatingSummary = pgView('coffee_bean_rating_summary', {
   score5Count: bigint('score_5_count', { mode: 'number' }).notNull(),
 }).existing();
 
-// "6 of 14 Philips owners reported issues". machineKind and manufacturerId are NULL for
+// "6 of 14 Philips users reported issues". machineKind and manufacturerId are NULL for
 // ratings made without naming a machine.
 export const coffeeBeanMachineIssueSummary = pgView('coffee_bean_machine_issue_summary', {
   coffeeBeanId: bigint('coffee_bean_id', { mode: 'number' }).notNull(),

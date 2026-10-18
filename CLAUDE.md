@@ -96,3 +96,4 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - Validate every request body, query and route parameter at the API boundary with a schema. `suggestion.details` is a discriminated union on `suggestion_type`.
 - Accessible widgets (dropdowns, dialogs, the segment control) come from Nuxt UI. Where it has no matching component (it has no toggle group, which the sliders need), use the Reka UI primitive it is built on. Never hand-roll them.
 - Use Nuxt UI v4 component names: `UFormField`, `UDropdownMenu` and `USwitch`, not the v2 names `UFormGroup`, `UDropdown` and `UToggle`.
+- Existing comments may be edited

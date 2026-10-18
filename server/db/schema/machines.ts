@@ -3,8 +3,8 @@ import { isOneOf, isSlug, timestamps } from './common.ts';
 import { appUser } from './users.ts';
 
 // Every machine_issue code describes the grinder. An AUTOMATIC machine has it built in,
-// so issue rates group by manufacturer; a PORTAFILTER owner's grinder is usually a
-// separate device from another brand, so those owners form one group.
+// so issue rates group by manufacturer; a PORTAFILTER user's grinder is usually a
+// separate device from another brand, so those users form one group.
 export const machineKinds = ['AUTOMATIC', 'PORTAFILTER'] as const;
 
 export const machineManufacturer = pgTable('machine_manufacturer', {
