@@ -23,8 +23,8 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 
 - `app/` runs during SSR and in the browser: `pages/` is the router (folder path = URL), `layouts/` holds the page shells, plus `components/<feature>/`, `composables/use*.ts`, and `middleware/` for route guards (UX only, never access control).
 - `shared/` holds plain TypeScript imported by both sides: DTOs in `shared/types/`, pure helpers (GTIN, score formatting) in `shared/utils/`. It imports from neither `app/` nor `server/`.
-- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks), `utils/` (cross-cutting helpers such as `useDb()` and `requireUser()`).
-- Relative imports under `server/db/` end in `.ts` and use no path aliases: the seed script runs on Node's built-in TypeScript support, which resolves neither extensionless imports nor aliases.
+- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks), `plugins/` (Nitro hooks, such as the browser cache header on cached routes), `utils/` (cross-cutting helpers such as `useDb()` and `requireUser()`).
+- Relative imports under `server/db/` end in `.ts` and use no path aliases: the seed script runs on Node's built-in TypeScript support, which resolves neither extensionless imports nor aliases. `server/features/` follows the same rule and uses no Nuxt auto-imports, because plain Vitest, without Nuxt, runs the feature tests that sit next to them.
 - UI text lives in `i18n/locales/`.
 - Handlers stay thin: validate, check auth, call one feature function, map the result to a status code. Feature functions are plain async functions that take `db` (or a transaction) as their first argument. No classes, repositories or service layers.
 - Import feature modules explicitly; only `server/utils/` is auto-imported. Public handlers import only feature code that reads the summary views; the signed-in user's own rows go through `server/api/me/`.
@@ -34,7 +34,7 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 ## Commands
 
 - `npm run dev`: dev server at http://localhost:3000.
-- `npm run check`: lint (any warning fails) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
+- `npm run check`: lint (any warning fails; Tailwind classes included) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
 - `npm run lint:fix`: fixes lint findings and formatting. ESLint Stylistic is the formatter; there is no Prettier.
 - `npm run build`: production build.
 - `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction.

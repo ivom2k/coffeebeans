@@ -6,5 +6,98 @@
   "home": {
     "title": "Kontrolli kohvi enne ostmist",
     "lead": "Espressomasinate kasutajate hinnangud Eestis müüdavatele kohviubadele."
+  },
+  "common": {
+    "backToRanking": "Pingerida"
+  },
+  "search": {
+    "title": "Otsing",
+    "label": "Otsi kohvi nime või ribakoodi järgi",
+    "placeholder": "Otsi nime või ribakoodi",
+    "submit": "Otsi",
+    "clear": "Tühjenda otsing",
+    "prompt": "Otsi kohvi nime, brändi või ribakoodi järgi.",
+    "tooShort": "Sisesta vähemalt kaks tähemärki.",
+    "failed": "Otsing ebaõnnestus. Proovi uuesti.",
+    "resultCount": "{count} tulemus päringule „{query}“ | {count} tulemust päringule „{query}“",
+    "brands": "Bränd | Brändid",
+    "coffees": "Kohvid",
+    "coffeeCount": "{count} kohv | {count} kohvi",
+    "noResultsTitle": "„{query}“ ei leitud",
+    "noResultsHint": "Kontrolli kirjapilti või otsi ribakoodi järgi.",
+    "foundByBarcode": "Leitud ribakoodi järgi",
+    "package": "pakend {size}",
+    "barcodeNotFoundTitle": "Selle ribakoodiga kohvi kataloogis pole",
+    "barcodeHint": "Ribakood on numbririda hinnasildil või paki põhjal triipkoodi all.",
+    "barcodeInvalidTitle": "Ribakood „{query}“ ei tundu õige",
+    "barcodeInvalidHint": "Kontrolli numbreid: ribakoodis on 8, 12, 13 või 14 numbrit ja viimane neist on kontrollnumber.",
+    "showRanking": "Vaata pingerida"
+  },
+  "ranking": {
+    "title": "Pingerida",
+    "unratedTitle": "Veel hindamata",
+    "empty": "Pingereas pole veel ühtegi hinnatud kohvi.",
+    "emptyFiltered": "Nende valikutega hinnatud kohve pole.",
+    "roastFilter": "Röstiaste",
+    "roastFilterSelected": "Röstiaste: {levels}",
+    "roastLight": "{level} – hele",
+    "roastDark": "{level} – tume",
+    "issuesFilter": "Masinaprobleemid",
+    "issuesAll": "Kõik kohvid",
+    "issuesFew": "Vähe masinaprobleeme"
+  },
+  "coffee": {
+    "ratingCount": "{count} hinnang | {count} hinnangut",
+    "roastShort": "Röstiaste {level}/5",
+    "roastUnknown": "Röstiaste teadmata",
+    "archivedShort": "enam ei müüda",
+    "archivedTitle": "Enam ei müüda",
+    "archivedText": "See kohv on arhiivis. Hinnangud jäävad alles, kuid pingereas seda ei näidata.",
+    "issueBadge": "Masinaprobleeme {withIssues}/{answered}",
+    "histogramLabel": "Hinnete jaotus: {counts}",
+    "noRatingsTitle": "Veel hinnanguid pole",
+    "noRatingsText": "Keskmine hinne ja hinnete jaotus ilmuvad siia esimese hinnangu järel.",
+    "machineIssuesTitle": "Masinaprobleemid",
+    "machineIssuesIntro": "Kui paljud vastanutest teatasid, et oad jäid kinni või veski oli hädas.",
+    "automaticMachines": "Automaatmasinad",
+    "portafilterMachines": "Portafiltriga masinad",
+    "grinderIssues": "Veskiga probleeme",
+    "issueShare": "{withIssues} / {answered} vastanust",
+    "tooFewAnswers": "Liiga vähe vastuseid ({count})",
+    "issueThreshold": "Osakaalu näitame, kui vastuseid on vähemalt {count}.",
+    "detailsTitle": "Pakendi andmed",
+    "roastLevel": "Röstiaste",
+    "roastValue": "{level} / 5",
+    "roastBarLabel": "Röstiaste {level} viiest",
+    "roastLight": "hele",
+    "roastDark": "tume",
+    "unknown": "teadmata",
+    "composition": "Koostis",
+    "speciesShare": "{percentage} % {species}",
+    "origin": "Päritolu",
+    "packages": "Pakend | Pakendid",
+    "descriptionTitle": "Kirjeldus",
+    "metaRated": "{name}: {score} ({ratings}). Espressomasinate kasutajate hinnangud ja masinaprobleemid.",
+    "metaUnrated": "{name}: pakendi andmed, espressomasinate kasutajate hinnangud ja masinaprobleemid."
+  },
+  "brand": {
+    "eyebrow": "Bränd",
+    "coffeesTitle": "Kohvid",
+    "archivedTitle": "Enam ei müüda",
+    "coffeeCount": "{count} kohv kataloogis | {count} kohvi kataloogis",
+    "meta": "{name}: kohvid ja espressomasinate kasutajate hinnangud."
+  },
+  "species": {
+    "ARABICA": "araabika",
+    "ROBUSTA": "robusta",
+    "LIBERICA": "liberika",
+    "EXCELSA": "excelsa"
+  },
+  "error": {
+    "notFoundTitle": "Lehte ei leitud",
+    "notFoundText": "Seda lehte pole olemas või on see kolinud.",
+    "title": "Midagi läks valesti",
+    "text": "Proovi hiljem uuesti.",
+    "home": "Avalehele"
   }
 }

@@ -137,6 +137,8 @@ const userMachines = [
 // Spread so the ranking, the histogram and the machine-issue summary all have something
 // to show: one coffee with a single 5 (it ranks below well-rated coffees with many
 // ratings), an oily coffee with grinder trouble, skipped answers, and no machine named.
+// A machine-issue group needs 5 answers before its share shows, so three coffees reach it
+// in one group each: Intenso Scuro a high share, Crema Dolce a low one, Hommik none at all.
 const ratings: readonly RatingSeed[] = [
   { coffee: 'vallozzi-crema-dolce', user: 1, score: 5, machine: 'vm-300-plus', surface: 'DRY', issues: [], perceived: { bitterness: 2, roastCharacter: 3, crema: 4, strength: 3 }, note: 'Osta uuesti, kui on soodushinnaga.' },
   { coffee: 'vallozzi-crema-dolce', user: 2, score: 4, machine: 'duo-5', surface: 'DRY', issues: [] },
@@ -148,6 +150,8 @@ const ratings: readonly RatingSeed[] = [
   { coffee: 'vallozzi-crema-dolce', user: 8, score: 5, machine: 'classic-1', surface: 'DRY', issues: [] },
   { coffee: 'vallozzi-crema-dolce', user: 9, score: 2, machine: 'vm-100', surface: 'DRY', issues: [], perceived: { bitterness: 5 }, note: 'Liiga mõru, isegi piimaga.' },
   { coffee: 'vallozzi-crema-dolce', user: 10, score: 4, machine: 'duo-5', issues: [] },
+  { coffee: 'vallozzi-crema-dolce', user: 11, score: 5, machine: 'vm-100', surface: 'DRY', issues: [] },
+  { coffee: 'vallozzi-crema-dolce', user: 12, score: 4, machine: 'vm-300-plus', surface: 'DRY', issues: ['FREQUENT_CLEANING'] },
 
   { coffee: 'vallozzi-intenso-scuro', user: 1, score: 3, machine: 'vm-300-plus', surface: 'OILY', issues: ['GRINDER_STRUGGLED', 'FREQUENT_CLEANING'], perceived: { bitterness: 5, roastCharacter: 5, strength: 5 } },
   { coffee: 'vallozzi-intenso-scuro', user: 2, score: 2, machine: 'duo-5', surface: 'OILY', issues: ['BEANS_STICK_IN_HOPPER'] },
@@ -155,6 +159,11 @@ const ratings: readonly RatingSeed[] = [
   { coffee: 'vallozzi-intenso-scuro', user: 4, score: 3, machine: 'vm-100', surface: 'OILY', issues: ['BEANS_STICK_IN_HOPPER', 'GRINDER_STRUGGLED'] },
   { coffee: 'vallozzi-intenso-scuro', user: 5, score: 2, machine: 'duo-5', surface: 'OILY', issues: ['GRINDER_JAMMED'] },
   { coffee: 'vallozzi-intenso-scuro', user: 6, score: 3, machine: 'vm-300-plus', surface: 'SLIGHTLY_OILY', issues: [] },
+  { coffee: 'vallozzi-intenso-scuro', user: 9, score: 2, machine: 'vm-100', surface: 'OILY', issues: ['GRINDER_STRUGGLED'] },
+  { coffee: 'vallozzi-intenso-scuro', user: 11, score: 3, machine: 'vm-300-plus', surface: 'OILY', issues: [] },
+  { coffee: 'vallozzi-intenso-scuro', user: 7, score: 3, machine: 'duo-5', surface: 'OILY', issues: [] },
+  { coffee: 'vallozzi-intenso-scuro', user: 8, score: 3, machine: 'duo-5', surface: 'OILY', issues: [] },
+  { coffee: 'vallozzi-intenso-scuro', user: 10, score: 4, machine: 'duo-5', surface: 'OILY', issues: [] },
 
   { coffee: 'vallozzi-gran-aroma', user: 7, score: 4, machine: 'vm-100', surface: 'DRY', issues: [] },
   { coffee: 'vallozzi-gran-aroma', user: 8, score: 3, machine: 'duo-5', surface: 'DRY', issues: [] },
@@ -164,6 +173,9 @@ const ratings: readonly RatingSeed[] = [
   { coffee: 'pohjarost-hommik', user: 3, score: 5, machine: 'classic-1', surface: 'DRY', issues: [] },
   { coffee: 'pohjarost-hommik', user: 8, score: 4, machine: 'classic-1', surface: 'DRY', issues: [] },
   { coffee: 'pohjarost-hommik', user: 11, score: 5, machine: 'vm-100', surface: 'DRY', issues: [] },
+  { coffee: 'pohjarost-hommik', user: 6, score: 4, machine: 'classic-1', surface: 'DRY', issues: [] },
+  { coffee: 'pohjarost-hommik', user: 10, score: 5, machine: 'classic-1', surface: 'DRY', issues: [] },
+  { coffee: 'pohjarost-hommik', user: 12, score: 4, machine: 'classic-1', surface: 'DRY', issues: [] },
 
   { coffee: 'pohjarost-oine-espresso', user: 2, score: 4, machine: 'duo-5', surface: 'SLIGHTLY_OILY', issues: [] },
   { coffee: 'pohjarost-oine-espresso', user: 4, score: 4, machine: 'vm-100', surface: 'SLIGHTLY_OILY', issues: ['OTHER'] },

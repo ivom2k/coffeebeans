@@ -18,6 +18,47 @@
   --color-cornflower-800: #2a4699;
   --color-cornflower-900: #1f3576;
   --color-cornflower-950: #12214d;
+
+  /* Status colours from the canvas, mapped onto Nuxt UI's warning, success and error in
+     app.config.ts. Each defines a text shade and a light tint (warning also its bar and
+     track); the other shades are interpolated in OKLCH like cornflower. */
+  --color-ochre-50: #fff1dc;
+  --color-ochre-100: #f3e6d6;
+  --color-ochre-200: #e8cfb4;
+  --color-ochre-300: #deb893;
+  --color-ochre-400: #d4a074;
+  --color-ochre-500: #ca8754;
+  --color-ochre-600: #bf6e34;
+  --color-ochre-700: #b45309;
+  --color-ochre-800: #8a4b00;
+  --color-ochre-900: #6d3a00;
+  --color-ochre-950: #522900;
+
+  --color-pine-50: #e3f4ea;
+  --color-pine-100: #cae2d4;
+  --color-pine-200: #b2d1be;
+  --color-pine-300: #9abfa9;
+  --color-pine-400: #82ae94;
+  --color-pine-500: #6a9d7f;
+  --color-pine-600: #528c6b;
+  --color-pine-700: #3a7b57;
+  --color-pine-800: #1d6b43;
+  --color-pine-900: #135433;
+  --color-pine-950: #0a3d24;
+
+  /* The canvas has a second, orange-red (#9a3412) for rejected suggestions; one red
+     family is simpler, and 700 on 50 still gives 5.7:1. */
+  --color-brick-50: #fdece4;
+  --color-brick-100: #f5d2c3;
+  --color-brick-200: #ecb8a4;
+  --color-brick-300: #e39e86;
+  --color-brick-400: #d9836a;
+  --color-brick-500: #ce674e;
+  --color-brick-600: #c14934;
+  --color-brick-700: #b42318;
+  --color-brick-800: #901a11;
+  --color-brick-900: #6e110a;
+  --color-brick-950: #4e0905;
 }
 
 /* Unlayered, so these win over Nuxt UI's defaults in @layer theme.
@@ -25,6 +66,10 @@
 :root {
   /* Nuxt UI's default shade 500 is too light for text on white; 700 gives 6.6:1. */
   --ui-primary: var(--ui-color-primary-700);
+  /* The canvas's text shades; each reaches at least 5.6:1 on white and on its tint. */
+  --ui-success: var(--ui-color-success-800);
+  --ui-warning: var(--ui-color-warning-800);
+  --ui-error: var(--ui-color-error-700);
 
   /* Buttons and inputs (rounded-md = 1.5x) get the canvas's 12px corners, cards (rounded-lg) 16px. */
   --ui-radius: 0.5rem;
@@ -46,5 +91,11 @@
 @layer base {
   body {
     @apply bg-muted;
+  }
+
+  /* Chrome and Safari draw their own small clear button in search fields; the search
+     field has a 44 px one of its own. */
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
   }
 }
