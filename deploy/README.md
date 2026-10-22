@@ -103,8 +103,8 @@ The private key goes into GitHub (step 8). Delete the local copy afterwards; a n
 
 ### 7. DNS (Zone.ee)
 
-1. Lower the TTL of the `kohvioad.eu` A record to 300 and wait out the old TTL.
-2. Point A at `<ip>`. Add AAAA with the IPv6 address, if the VM has one. Add `www` as a CNAME to `kohvioad.eu`.
+1. Check the A record's TTL: **(cmd)** `nslookup -debug -type=A kohvioad.eu ns.zone.eu`, under ANSWERS. If it's long, lower it to 300 and wait out the old value first. Zone's default was already 300.
+2. Point A at `<ip>`. Add AAAA with the IPv6 address, if the VM has one. `www` must be a CNAME to `kohvioad.eu`; Zone creates it that way.
 3. **(cmd)** `nslookup kohvioad.eu 1.1.1.1` shows `<ip>`. Do this before the first deploy: Caddy requests the certificate as soon as it starts, and Let's Encrypt can verify only a domain that already points here.
 
 ### 8. GitHub (repository settings)
@@ -113,6 +113,7 @@ The private key goes into GitHub (step 8). Delete the local copy afterwards; a n
   - Secret `DEPLOY_SSH_KEY`: the content of `kohvioad_deploy` (the private key).
   - Variable `DEPLOY_HOST`: `<ip>`. Variable `DEPLOY_USER`: `<admin>`.
   - Variable `DEPLOY_KNOWN_HOSTS`: the server's host key. **(cmd)** `ssh-keyscan -t ed25519 <ip>` prints it. First check that `ssh-keyscan -t ed25519 <ip> | ssh-keygen -lf -` shows the same fingerprint as `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server. That check is what prevents a man-in-the-middle at this step.
+    - Windows' built-in `ssh-keyscan` (OpenSSH 9.5) may fail against the server's newer OpenSSH with `choose_kex: unsupported KEX method sntrup761x25519-sha512@openssh.com`. Use Git's instead: `"C:\Program Files\Git\usr\bin\ssh-keyscan.exe" -t ed25519 <ip>`. Or read the key you already accepted at your first login: `ssh-keygen -F <ip>`.
 
 ### 9. First deploy
 
