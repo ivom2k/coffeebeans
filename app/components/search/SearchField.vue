@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { Ref } from 'vue';
 
-const props = defineProps<{ initialQuery?: string }>();
-const emit = defineEmits<{ clear: [] }>();
+const props = defineProps<{ initialQuery?: string; submitOnClear?: boolean }>();
 
 const localePath = useLocalePath();
 const query: Ref<string> = shallowRef(props.initialQuery ?? '');
@@ -19,12 +18,17 @@ const submit = async () => {
   await navigateTo(q ? { path: localePath('/otsing'), query: { q } } : localePath('/'));
 };
 
-// Clears the field and puts the cursor back for a new query. The page decides whether
-// anything else goes too: on the search page, the results of the cleared query do.
-const clear = () => {
+// Clears the field and puts the cursor back for a new query. With submitOnClear (the search
+// page), clearing submits the empty search instead, which leads to the ranked list; navigateTo
+// pushes, so Back brings the cleared results back. No focus then: on a phone it would open the
+// keyboard just before the page changes.
+const clear = async () => {
   query.value = '';
+  if (props.submitOnClear) {
+    await submit();
+    return;
+  }
   field.value?.inputRef?.focus();
-  emit('clear');
 };
 </script>
 

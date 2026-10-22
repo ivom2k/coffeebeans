@@ -3,7 +3,6 @@ import type { BrandHit, SearchResponse } from '#shared/types/search';
 
 const { t } = useI18n();
 const route = useRoute();
-const localePath = useLocalePath();
 const { countryName, formatPackageSize } = useFormatters();
 
 // Search results aren't landing pages, and every query would be its own thin page.
@@ -28,10 +27,6 @@ const brandMeta = (brand: BrandHit) => [
   brand.countryCode === null ? null : countryName(brand.countryCode),
   t('search.coffeeCount', brand.coffeeCount),
 ].filter(part => part !== null).join(' · ');
-
-// Results of a cleared query shouldn't linger under an empty field. Replace rather than
-// push, so Back still leads to where the visitor came from.
-const clearResults = () => navigateTo(localePath('/otsing'), { replace: true });
 </script>
 
 <template>
@@ -42,7 +37,7 @@ const clearResults = () => navigateTo(localePath('/otsing'), { replace: true });
     </h1>
     <SearchField
       :initial-query="q"
-      @clear="clearResults"
+      submit-on-clear
     />
 
     <p

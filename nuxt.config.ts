@@ -32,6 +32,13 @@ export default defineNuxtConfig({
     '/api/coffees/**': { swr: 60 },
     '/api/brands/**': { swr: 60 },
   },
+  experimental: {
+    // On swr routes Nuxt would otherwise load a page's data from a separate _payload.json,
+    // cached apart from the HTML: after a data change the two can disagree for up to a minute,
+    // and the browser redraws fresh HTML with stale data. Inline on the first load, they come
+    // from one render; _payload.json stays for in-app navigation.
+    payloadExtraction: 'client',
+  },
   compatibilityDate: '2025-07-15',
   typescript: {
     // Root-level tool configs aren't in any generated tsconfig; this makes `npm run check` cover them.
