@@ -118,8 +118,9 @@ The private key goes into GitHub (step 8). Delete the local copy afterwards; a n
 
 A push to `main` runs the workflow.
 
-- The first push creates the GHCR package as **private**, so `deploy` fails to pull with `denied`.
-- Fix it under **Packages → coffeebeans → Package settings → Change visibility → Public**, then re-run the failed jobs.
+- The first push creates the GHCR package `ghcr.io/ivom2k/coffeebeans`. It came out **public** in 2026, apparently because it is linked to the public repository through the image's `org.opencontainers.image.source` label.
+- If a later package ever comes out private, `deploy` fails to pull it with `denied`. Fix it under **Packages → coffeebeans → Package settings → Change visibility → Public**, then re-run the failed jobs.
+- If `deploy` ran before steps 6–8 were done, it failed with ssh's usage text, because there was no host to connect to. Re-run it once they're done.
 
 Then seed the fictional catalogue once, into the freshly migrated database:
 
