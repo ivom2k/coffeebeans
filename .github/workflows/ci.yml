@@ -5,12 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# A newer push cancels the run still checking an older commit.
+# Runs queue instead of cancelling each other, so a deploy is never cut off halfway. A newer
+# push replaces a run that is still waiting, so the latest commit on main is the one deployed.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
-# The job only reads the code.
+# Jobs only read the code; `image` adds the one permission it needs.
 permissions:
   contents: read
 
@@ -66,3 +67,63 @@ jobs:
       - run: npm run db:migrate
       - run: npm run db:seed
       - run: npm test
+
+  # Builds the images alongside the checks. They are tagged with the commit SHA, so an image whose
+  # commit then fails a check sits in the registry but never reaches the server.
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      # GITHUB_TOKEN lives only as long as this run; `packages: write` lets it push here.
+      - name: Log in to GitHub Container Registry
+        run: echo "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The second build reuses the first one's dependency layer from this runner's cache.
+      - name: Build
+        run: |
+          docker build --pull --build-arg NODE_VERSION="$(cat .nvmrc)" --target migrate --tag "$IMAGE:migrate-$GITHUB_SHA" .
+          docker build --build-arg NODE_VERSION="$(cat .nvmrc)" --target app --tag "$IMAGE:app-$GITHUB_SHA" .
+      - name: Push
+        run: |
+          docker push "$IMAGE:migrate-$GITHUB_SHA"
+          docker push "$IMAGE:app-$GITHUB_SHA"
+
+  deploy:
+    needs: [check, test, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The environment holds the deploy key and hands it only to runs on main.
+    environment:
+      name: production
+      url: https://kohvioad.eu
+    steps:
+      # Secrets go through env rather than ${{ }} inside the script, so their content is never
+      # pasted into shell code. known_hosts pins the server's key: no blind first-connect trust.
+      - name: Prepare SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+        env:
+          KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      # The key may only run deploy/deploy.sh, which takes the SHA sent as the command.
+      - name: Deploy
+        run: ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_SHA"
+        env:
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      # Goes through DNS, TLS, Caddy, the app and Postgres. The retries cover the seconds the new
+      # app container needs to start.
+      - name: Smoke test
+        run: |
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-delay 3 --retry-all-errors https://kohvioad.eu/
+          curl --fail --silent --show-error --output /dev/null --retry 10 --retry-delay 3 --retry-all-errors https://kohvioad.eu/api/ranking

@@ -12,7 +12,7 @@ This is a solo learning project. When you touch infrastructure (Dockerfile, Comp
 - Google sign-in (OIDC) via `nuxt-auth-utils`, sessions in sealed cookies.
 - UI components: Nuxt UI v4. It sets up Tailwind v4 itself, so don't add a separate Tailwind module.
 - `@nuxtjs/i18n` and `@nuxtjs/seo`; sharp for image processing.
-- Production: Docker Compose on one VPS behind Caddy. CI/CD: GitHub Actions.
+- Production: Docker Compose on one Pilvio VPS in Tallinn, behind Caddy. CI/CD: GitHub Actions builds the images, pushes them to GHCR and deploys; the server only pulls.
 - Development happens on Windows and production on Linux, so `package.json` scripts must run on both (no `rm -rf`, no inline `VAR=value`).
 - Zod for schema validation.
 - Not decided yet, so ask before choosing or installing: what runs scheduled cleanup (a Nitro task or a cron container). Ask before adding any other dependency as well.
@@ -24,6 +24,7 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - `app/` runs during SSR and in the browser: `pages/` is the router (folder path = URL), `layouts/` holds the page shells, plus `components/<feature>/`, `composables/use*.ts`, and `middleware/` for route guards (UX only, never access control).
 - `shared/` holds plain TypeScript imported by both sides: DTOs in `shared/types/`, pure helpers (GTIN, score formatting) in `shared/utils/`. It imports from neither `app/` nor `server/`.
 - `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks), `plugins/` (Nitro hooks, such as the browser cache header on cached routes), `utils/` (cross-cutting helpers such as `useDb()` and `requireUser()`).
+- `Dockerfile` (root) builds the production images: `app`, and `migrate` for migrations and the seed. `deploy/` holds what runs on the server: `compose.yaml`, `caddy/Caddyfile`, `deploy.sh` and the runbook `README.md`.
 - Relative imports under `server/db/` end in `.ts` and use no path aliases: the seed script runs on Node's built-in TypeScript support, which resolves neither extensionless imports nor aliases. `server/features/` follows the same rule and uses no Nuxt auto-imports, because plain Vitest, without Nuxt, runs the feature tests that sit next to them.
 - UI text lives in `i18n/locales/`.
 - Handlers stay thin: validate, check auth, call one feature function, map the result to a status code. Feature functions are plain async functions that take `db` (or a transaction) as their first argument. No classes, repositories or service layers.
@@ -43,6 +44,8 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - `npm run db:seed`: the fictional seed, into a freshly migrated database only.
 
 The database commands and `npm test` need the Compose Postgres running (`docker compose up -d`, which Ivo runs). Keep this section in step with `package.json`.
+
+Deploys: a push to `main` deploys once the `check`, `test` and `image` jobs pass. Server operations are in `deploy/README.md`; Ivo runs them.
 
 ## Git
 
@@ -84,6 +87,7 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - Estonian is the default locale at `/`; Russian comes later under `/ru/` (`prefix_except_default`). UI text comes from locale files, never hard-coded in templates.
 - Vocabulary codes stored in the database are the i18n keys; never store display labels. Coffee and brand names are never translated. Country names come from `Intl.DisplayNames`.
 - Coffee pages are `noindex` and left out of the sitemap until their first rating.
+- Until launch the whole site is non-indexable, through `NUXT_SITE_INDEXABLE=false` in the server's `.env` (`deploy/compose.yaml` requires the variable). That is the only switch: don't also set `site.indexable` in `nuxt.config.ts`.
 - Public URLs never break: an old slug of a published coffee answers with a 301 to the current URL (`coffee_bean_slug_redirect`, maintained by a trigger).
 
 ### Code

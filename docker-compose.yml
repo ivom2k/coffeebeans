@@ -1,5 +1,5 @@
 # Local development database. Nuxt runs natively on Windows and connects through
-# 127.0.0.1:5432. The production Compose setup grows out of this file.
+# 127.0.0.1:5432. Production runs deploy/compose.yaml, whose db service matches this one.
 
 # Fixes the project name, so container, network and volume names don't depend on the
 # folder the repository was cloned into (the volume becomes kohvioad_pgdata).

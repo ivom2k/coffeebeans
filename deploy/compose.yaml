@@ -1,0 +1,92 @@
+# Production stack on the VPS: Postgres, a one-shot migration container, the Nuxt app and Caddy.
+# deploy.sh runs it after each push to main that passes CI; README.md next to this file is the
+# server runbook. Compose reads .env from this folder (names in .env.example).
+
+name: kohvioad
+
+# Docker's json-file log grows forever unless told otherwise. Every service gets the same cap,
+# and Caddy masks client IPs, so no full IP address ends up in a log (§5).
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  db:
+    # Same image and volume layout as the dev docker-compose.yml.
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+    ports:
+      # Loopback only, for DBeaver through an SSH tunnel. Docker's iptables rules bypass host
+      # firewalls, so a bare "5432:5432" would answer the whole internet.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *logging
+
+  # Applies pending migrations and exits. The app starts only once this has exited with 0, so
+  # it never runs on a schema that is behind its code. Also runs the seed (README.md).
+  migrate:
+    image: ghcr.io/ivom2k/coffeebeans:migrate-${IMAGE_TAG:?set by deploy.sh}
+    restart: "no"
+    environment:
+      NUXT_DATABASE_URL: &database-url postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *logging
+
+  app:
+    image: ghcr.io/ivom2k/coffeebeans:app-${IMAGE_TAG:?set by deploy.sh}
+    restart: unless-stopped
+    environment:
+      NUXT_DATABASE_URL: *database-url
+      NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?set NUXT_SESSION_PASSWORD in .env}
+      # false until launch: robots.txt then disallows everything and every page says noindex.
+      NUXT_SITE_INDEXABLE: ${NUXT_SITE_INDEXABLE:?set NUXT_SITE_INDEXABLE in .env}
+    # No published ports: only Caddy reaches the app, over the Compose network. That's what
+    # makes the X-Forwarded-For header Caddy sets trustworthy (§5).
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    logging: *logging
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 runs over UDP
+    volumes:
+      # The folder, not the file: git checkout replaces the Caddyfile with a new file, and a
+      # single-file mount would keep showing the old one.
+      - ./caddy:/etc/caddy:ro
+      # Certificates and the ACME account. Without them Caddy re-issues on every start and soon
+      # hits Let's Encrypt's rate limits.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    logging: *logging
+
+networks:
+  default:
+    # On an IPv4-only network, Docker's userland proxy takes IPv6 connections and forwards them
+    # over IPv4, so Caddy would log the proxy's address instead of the visitor's.
+    enable_ipv6: true
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

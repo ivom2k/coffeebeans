@@ -1,0 +1,23 @@
+# Caddy gets and renews the TLS certificates itself, as long as the domain points at this
+# server and ports 80 and 443 are open. deploy.sh reloads this file after every deploy.
+
+kohvioad.eu {
+	encode zstd gzip
+	reverse_proxy app:3000
+
+	# One JSON line per request on stdout, which Docker rotates. Client IPs are cut to their
+	# network prefix (/24 IPv4, /32 IPv6), so no full address is stored (§5). Caddy already
+	# redacts the Cookie and Authorization headers.
+	log {
+		output stdout
+		format filter {
+			request>remote_ip ip_mask 24 32
+			request>client_ip ip_mask 24 32
+			request>headers>X-Forwarded-For delete
+		}
+	}
+}
+
+www.kohvioad.eu {
+	redir https://kohvioad.eu{uri} permanent
+}

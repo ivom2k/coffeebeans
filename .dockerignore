@@ -1,0 +1,21 @@
+# What `COPY . .` must never see. The images are public, so a local .env copied in would
+# publish its secrets; the server passes them in at runtime instead. The rest is either
+# rebuilt inside the image (node_modules, .nuxt, .output) or not needed to build it.
+.env
+.env.*
+.git
+.github
+.claude
+node_modules
+.nuxt
+.nitro
+.output
+.data
+.cache
+dist
+docs
+deploy
+*.md
+*.log
+Dockerfile
+.dockerignore
