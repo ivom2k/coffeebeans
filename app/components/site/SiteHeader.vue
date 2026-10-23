@@ -9,6 +9,13 @@
         <SiteLogo class="size-7 lg:size-8" />
         <span class="text-[22px] font-bold tracking-[-0.02em] lg:text-2xl">{{ $t('site.name') }}</span>
       </NuxtLinkLocale>
+      <!-- The header is part of every cached page, so the per-user part renders only in the
+           browser. The fixed width keeps the logo still while it appears. -->
+      <div class="flex w-28 justify-end">
+        <ClientOnly>
+          <AuthAccountButton />
+        </ClientOnly>
+      </div>
     </UContainer>
   </header>
 </template>

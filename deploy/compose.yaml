@@ -52,6 +52,11 @@ services:
     environment:
       NUXT_DATABASE_URL: *database-url
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?set NUXT_SESSION_PASSWORD in .env}
+      NUXT_OAUTH_GOOGLE_CLIENT_ID: ${NUXT_OAUTH_GOOGLE_CLIENT_ID:?set NUXT_OAUTH_GOOGLE_CLIENT_ID in .env}
+      NUXT_OAUTH_GOOGLE_CLIENT_SECRET: ${NUXT_OAUTH_GOOGLE_CLIENT_SECRET:?set NUXT_OAUTH_GOOGLE_CLIENT_SECRET in .env}
+      # Fixed rather than built from the request, so it never depends on the headers Caddy
+      # forwards. Must equal the prod client's redirect URI in Google Cloud Console.
+      NUXT_OAUTH_GOOGLE_REDIRECT_URL: https://kohvioad.eu/api/auth/google
       # false until launch: robots.txt then disallows everything and every page says noindex.
       NUXT_SITE_INDEXABLE: ${NUXT_SITE_INDEXABLE:?set NUXT_SITE_INDEXABLE in .env}
     # No published ports: only Caddy reaches the app, over the Compose network. That's what

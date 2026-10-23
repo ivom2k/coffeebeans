@@ -59,8 +59,9 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - Public routes get rating data only from the views `coffee_bean_rating_summary` and `coffee_bean_machine_issue_summary`, never from `rating` itself: `rating.private_note` is visible only to its author.
 - Public pages are cached with Nitro `swr` route rules, so their server output must be identical for every visitor. Anything per-user (the visitor's own rating, watchlist state, the signed-in header) renders in the browser.
 - Admin endpoints live under `server/api/admin/` and check the role on the server. Hidden UI is not access control.
-- The database stores no email and no name. Sign-in requests only the `openid` scope, plus `profile` if the header greets by name; the name then lives only in the session cookie.
+- The database stores no email and no name. Sign-in requests only the `openid` scope.
 - A server middleware loads the user for every request with a session and clears the session if the account no longer exists or is anonymised.
+- No cookie before sign-in. Handlers read the user from `requireUser()` or `event.context.user`, never `getUserSession()`, which starts a session and sets a cookie when there is none.
 - Never hard-delete a user: account deletion calls `anonymise_user()`. `rating.user_id` has no cascade on purpose.
 - Every uploaded image is re-encoded with sharp, auto-rotated first, which strips EXIF and GPS. Suggestion photos get random names, live outside the directory Caddy serves, are shown only through an authenticated admin route, and are deleted at review.
 - IP addresses are stored only as an HMAC-SHA256 with a server secret, and only for anonymous feedback.

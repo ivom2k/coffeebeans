@@ -83,7 +83,22 @@ openssl rand -hex 32   # once for POSTGRES_PASSWORD, once more for NUXT_SESSION_
 nano .env
 ```
 
-### 6. Deploy key
+The Google sign-in values come from step 6.
+
+### 6. Google sign-in (Google Cloud Console)
+
+The `kohvioad` project at https://console.cloud.google.com, under Google Auth Platform:
+
+- Branding: app name `kohvioad`, home page `https://kohvioad.eu`, authorised domain `kohvioad.eu`. No logo: a logo waits for Google's brand verification before it shows.
+- Data access: only the `openid` scope. Google then sends only the account's subject (`sub`), the one thing `app_user` stores.
+- Clients: `kohvioad-prod`, a web application whose only redirect URI is `https://kohvioad.eu/api/auth/google`, the address `compose.yaml` sets. Development has its own client, `kohvioad-dev`, so this secret exists only on the server.
+- Google shows a client secret only once, when it is created. Put the client ID and secret into `.env`. If the secret is lost, add a new one to the client, put that in `.env`, then delete the old one.
+
+`compose.yaml` requires both. Without them a deploy stops at `docker compose pull` with `required variable NUXT_OAUTH_GOOGLE_CLIENT_ID is missing a value`, and plain `docker compose` commands fail the same way. The running containers are left as they were: fill in `.env` and re-run the failed job. To check without printing the values, `grep -c '^NUXT_OAUTH_GOOGLE_CLIENT_' .env` prints `2`.
+
+A redirect URI that differs from Google's by a single character fails at Google with `Error 400: redirect_uri_mismatch`.
+
+### 7. Deploy key
 
 **(cmd)** Create a key with no passphrase, since CI can't type one:
 
@@ -99,15 +114,15 @@ restrict,command="/opt/kohvioad/deploy/deploy.sh" ssh-ed25519 AAAA... kohvioad-g
 
 `command=` makes sshd run `deploy.sh` whatever the client asks for, and passes the request in `SSH_ORIGINAL_COMMAND`. `restrict` turns off port forwarding, agent forwarding and the terminal. If the private key leaks, all it can do is redeploy a commit that is already on `main`.
 
-The private key goes into GitHub (step 8). Delete the local copy afterwards; a new key replaces it if needed.
+The private key goes into GitHub (step 9). Delete the local copy afterwards; a new key replaces it if needed.
 
-### 7. DNS (Zone.ee)
+### 8. DNS (Zone.ee)
 
 1. Check the A record's TTL: **(cmd)** `nslookup -debug -type=A kohvioad.eu ns.zone.eu`, under ANSWERS. If it's long, lower it to 300 and wait out the old value first. Zone's default was already 300.
 2. Point A at `<ip>`. Add AAAA with the IPv6 address, if the VM has one. `www` must be a CNAME to `kohvioad.eu`; Zone creates it that way.
 3. **(cmd)** `nslookup kohvioad.eu 1.1.1.1` shows `<ip>`. Do this before the first deploy: Caddy requests the certificate as soon as it starts, and Let's Encrypt can verify only a domain that already points here.
 
-### 8. GitHub (repository settings)
+### 9. GitHub (repository settings)
 
 - **Environments → New environment** `production`. Under deployment branches, select `main` only.
   - Secret `DEPLOY_SSH_KEY`: the content of `kohvioad_deploy` (the private key).
@@ -115,13 +130,13 @@ The private key goes into GitHub (step 8). Delete the local copy afterwards; a n
   - Variable `DEPLOY_KNOWN_HOSTS`: the server's host key. **(cmd)** `ssh-keyscan -t ed25519 <ip>` prints it. First check that `ssh-keyscan -t ed25519 <ip> | ssh-keygen -lf -` shows the same fingerprint as `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server. That check is what prevents a man-in-the-middle at this step.
     - Windows' built-in `ssh-keyscan` (OpenSSH 9.5) may fail against the server's newer OpenSSH with `choose_kex: unsupported KEX method sntrup761x25519-sha512@openssh.com`. Use Git's instead: `"C:\Program Files\Git\usr\bin\ssh-keyscan.exe" -t ed25519 <ip>`. Or read the key you already accepted at your first login: `ssh-keygen -F <ip>`.
 
-### 9. First deploy
+### 10. First deploy
 
 A push to `main` runs the workflow.
 
 - The first push creates the GHCR package `ghcr.io/ivom2k/coffeebeans`. It came out **public** in 2026, apparently because it is linked to the public repository through the image's `org.opencontainers.image.source` label.
 - If a later package ever comes out private, `deploy` fails to pull it with `denied`. Fix it under **Packages → coffeebeans → Package settings → Change visibility → Public**, then re-run the failed jobs.
-- If `deploy` ran before steps 6–8 were done, it failed with ssh's usage text, because there was no host to connect to. Re-run it once they're done.
+- If `deploy` ran before steps 7–9 were done, it failed with ssh's usage text, because there was no host to connect to. Re-run it once they're done.
 
 Then seed the fictional catalogue once, into the freshly migrated database:
 

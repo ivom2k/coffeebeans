@@ -10,6 +10,19 @@
   "common": {
     "backToRanking": "Pingerida"
   },
+  "auth": {
+    "signIn": "Logi sisse",
+    "lead": "Lugemiseks kontot vaja pole. Hindamiseks on, et igaüks saaks iga kohvi hinnata ühe korra — oma hinnangut saad hiljem muuta.",
+    "continueWithGoogle": "Jätka Google'iga",
+    "privacy": "Me ei küsi Google'ilt sinu e-posti ega nime. Konto saad igal ajal kustutada.",
+    "notNow": "Mitte praegu"
+  },
+  "account": {
+    "title": "Minu konto",
+    "signedInWith": "Sisse logitud Google'iga",
+    "signOut": "Logi välja",
+    "signedOut": "Logi sisse, et oma kontot näha."
+  },
   "search": {
     "title": "Otsing",
     "label": "Otsi kohvi nime või ribakoodi järgi",

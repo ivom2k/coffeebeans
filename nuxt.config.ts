@@ -20,6 +20,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only. Set at runtime through NUXT_DATABASE_URL, so the built image holds no credentials.
     databaseUrl: '',
+    session: {
+      // 30 days from sign-in, not extended by use. h3 also checks the age stored inside the
+      // sealed cookie, so a copied cookie stops working then too.
+      maxAge: 60 * 60 * 24 * 30,
+    },
   },
   // Public read pages and their APIs are cached and revalidated in the background, so most
   // views never reach Postgres. That's only safe because their output is identical for every
@@ -46,6 +51,12 @@ export default defineNuxtConfig({
     nodeTsConfig: {
       include: ['../drizzle.config.ts', '../vitest.config.ts'],
     },
+  },
+  auth: {
+    // The browser asks for the session after hydration; the server never renders it. The default
+    // (server-first) keeps one visitor's session out of swr-cached pages only by detecting
+    // Nitro's cache context, and per-user parts render in <ClientOnly> anyway.
+    loadStrategy: 'client-only',
   },
   eslint: {
     config: {
