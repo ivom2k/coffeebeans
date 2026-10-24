@@ -29,7 +29,7 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - UI text lives in `i18n/locales/`.
 - Handlers stay thin: validate, check auth, call one feature function, map the result to a status code. Feature functions are plain async functions that take `db` (or a transaction) as their first argument. No classes, repositories or service layers.
 - Import feature modules explicitly; only `server/utils/` is auto-imported. Public handlers import only feature code that reads the summary views; the signed-in user's own rows go through `server/api/me/`.
-- `useFetch` serialises its result into the page source, so anything a public endpoint returns must be fit for every visitor. Per-user UI goes inside `<ClientOnly>`.
+- `useFetch` serialises its result into the page source, so anything a public endpoint returns must be fit for every visitor. Per-user UI goes inside `<ClientOnly>`, and fetches `/api/me/` data with `server: false`.
 - App code never imports from `server/`; it calls `$fetch` or `useFetch`. Nuxt blocks only some of these imports.
 
 ## Commands
@@ -38,7 +38,7 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - `npm run check`: lint (any warning fails; Tailwind classes included) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
 - `npm run lint:fix`: fixes lint findings and formatting. ESLint Stylistic is the formatter; there is no Prettier.
 - `npm run build`: production build.
-- `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction.
+- `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction. One test, `server/tests/publicRoutes.test.ts`, builds the app (about a minute) and runs it against that database to check that no public route returns private data and that cached routes tell browsers to check back; it commits its own rows and removes them.
 - `npm run db:generate`: a migration from changes in `server/db/schema/`. Add `-- --custom --name=<name>` for an empty file for hand-written SQL. Review the generated SQL before migrating.
 - `npm run db:migrate`: applies pending migrations to `NUXT_DATABASE_URL`.
 - `npm run db:seed`: the fictional seed, into a freshly migrated database only.
@@ -57,7 +57,7 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 
 - Reading needs no account. Rating and suggestions require sign-in. Feedback needs none and is guarded by a honeypot, an in-app rate limit and a length cap.
 - Public routes get rating data only from the views `coffee_bean_rating_summary` and `coffee_bean_machine_issue_summary`, never from `rating` itself: `rating.private_note` is visible only to its author.
-- Public pages are cached with Nitro `swr` route rules, so their server output must be identical for every visitor. Anything per-user (the visitor's own rating, watchlist state, the signed-in header) renders in the browser.
+- Public pages are cached with Nitro `swr` route rules, so their server output must be identical for every visitor. Anything per-user (the visitor's own rating, watchlist state, the signed-in header) renders in the browser. Code behind a cached route (its page, and every handler the page or the browser calls there) never reads the session user: Nitro renders it with the request's context, user included, and caches the result for everyone. A write that changes public output calls `clearPublicPageCache()` after its transaction commits.
 - Admin endpoints live under `server/api/admin/` and check the role on the server. Hidden UI is not access control.
 - The database stores no email and no name. Sign-in requests only the `openid` scope.
 - A server middleware loads the user for every request with a session and clears the session if the account no longer exists or is anonymised.

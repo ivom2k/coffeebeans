@@ -9,6 +9,10 @@ const testDb = createDatabase(process.env.TEST_DATABASE_URL ?? '');
 
 export const closeTestDb = () => testDb.$client.end();
 
+// Writes that commit, for a test whose rows another process must see, such as a running
+// server. The test removes its rows itself, since later test files expect to own every rating.
+export const committedDb: Database = testDb;
+
 // Runs a test body in a transaction that is always rolled back, so every test starts
 // from the freshly migrated database and never sees another test's rows.
 export const withRollback = async (body: (tx: Database) => Promise<void>) => {
@@ -80,14 +84,20 @@ export const createManufacturer = async (tx: Database, { name }: { name?: string
   return required(manufacturer);
 };
 
+type MachineModelOptions = {
+  kind?: (typeof machineKinds)[number];
+  manufacturerId?: number; // a new manufacturer when left out
+  name?: string;
+};
+
 export const createMachineModel = async (
   tx: Database,
-  { kind = 'AUTOMATIC', manufacturerId }: { kind?: (typeof machineKinds)[number]; manufacturerId?: number } = {},
+  { kind = 'AUTOMATIC', manufacturerId, name }: MachineModelOptions = {},
 ) => {
   const number = nextNumber();
   const ownerId = manufacturerId ?? (await createManufacturer(tx)).id;
   const [model] = await tx.insert(machineModel)
-    .values({ manufacturerId: ownerId, name: `Model ${number}`, slug: `model-${number}`, kind })
+    .values({ manufacturerId: ownerId, name: name ?? `Model ${number}`, slug: `model-${number}`, kind })
     .returning();
   return required(model);
 };

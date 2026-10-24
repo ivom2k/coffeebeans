@@ -15,8 +15,8 @@ const signOut = async () => {
 };
 </script>
 
-<!-- Later phases add their sections from the canvas: machines (5), suggestions (7), the data
-     export and account deletion (8). -->
+<!-- Later phases add their sections from the canvas: suggestions (7), the data export and
+     account deletion (8). -->
 <template>
   <div class="flex max-w-xl flex-col gap-6">
     <!-- The session is known only in the browser. -->
@@ -38,18 +38,21 @@ const signOut = async () => {
       <template v-if="ready">
         <div
           v-if="loggedIn"
-          class="overflow-hidden rounded-lg bg-default ring ring-default ring-inset"
+          class="flex flex-col gap-6"
         >
-          <UButton
-            :label="$t('account.signOut')"
-            icon="i-lucide-log-out"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            block
-            class="min-h-14 justify-start rounded-none px-4"
-            @click="signOut"
-          />
+          <MachineList />
+          <div class="overflow-hidden rounded-lg bg-default ring ring-default ring-inset">
+            <UButton
+              :label="$t('account.signOut')"
+              icon="i-lucide-log-out"
+              color="neutral"
+              variant="ghost"
+              size="xl"
+              block
+              class="min-h-14 justify-start rounded-none px-4"
+              @click="signOut"
+            />
+          </div>
         </div>
         <div
           v-else

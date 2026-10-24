@@ -102,12 +102,24 @@ if (coffee.value && coffee.value.rawMean !== null) {
           </h1>
         </div>
 
-        <CoffeeScoreSummary
-          v-if="coffee.rawMean !== null"
-          :raw-mean="coffee.rawMean"
-          :rating-count="coffee.ratingCount"
-          :score-counts="coffee.scoreCounts"
-        />
+        <template v-if="coffee.rawMean !== null">
+          <CoffeeScoreSummary
+            :raw-mean="coffee.rawMean"
+            :rating-count="coffee.ratingCount"
+            :score-counts="coffee.scoreCounts"
+          />
+          <!-- Per-user: "Hinda" or the visitor's own rating, rendered in the browser only.
+               The fallback holds the button's height so the page doesn't jump. -->
+          <ClientOnly>
+            <RatingAction
+              :slug="coffee.slug"
+              :outline="coffee.archived"
+            />
+            <template #fallback>
+              <div class="h-13" />
+            </template>
+          </ClientOnly>
+        </template>
         <div
           v-else
           class="flex flex-col items-center gap-2.5 rounded-lg bg-default px-5 py-6 text-center ring ring-default ring-inset"
@@ -116,6 +128,18 @@ if (coffee.value && coffee.value.rawMean !== null) {
           <p class="text-[15px] leading-normal text-muted">
             {{ $t('coffee.noRatingsText') }}
           </p>
+          <div class="mt-1.5 self-stretch">
+            <ClientOnly>
+              <RatingAction
+                :slug="coffee.slug"
+                :label="$t('rating.rateFirst')"
+                :outline="coffee.archived"
+              />
+              <template #fallback>
+                <div class="h-13" />
+              </template>
+            </ClientOnly>
+          </div>
         </div>
       </div>
     </div>

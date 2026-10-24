@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // The sign-in sheet from the UI canvas. The header opens it with the default title; the rating
-// button will open it with its own ("Logi sisse, et hinnata").
-defineProps<{ title?: string }>();
+// button opens it with its own ("Logi sisse, et hinnata") and the rating form as the way back.
+const props = defineProps<{ title?: string; redirect?: string }>();
 const open = defineModel<boolean>('open', { required: true });
 
 const route = useRoute();
-// Back to this page afterwards. The server accepts only a path on this site.
-const signInUrl = computed(() => `/api/auth/google?redirect=${encodeURIComponent(route.fullPath)}`);
+// Back to this page afterwards unless told otherwise. The server accepts only a path on this site.
+const signInUrl = computed(() => `/api/auth/google?redirect=${encodeURIComponent(props.redirect ?? route.fullPath)}`);
 </script>
 
 <template>

@@ -29,6 +29,7 @@ export default defineNuxtConfig({
   // Public read pages and their APIs are cached and revalidated in the background, so most
   // views never reach Postgres. That's only safe because their output is identical for every
   // visitor; per-user parts render in the browser. Search stays uncached: each query differs.
+  // A rating save empties this cache (server/utils/publicCache.ts).
   routeRules: {
     '/': { swr: 60 },
     '/kohv/**': { swr: 60 },
@@ -36,6 +37,8 @@ export default defineNuxtConfig({
     '/api/ranking': { swr: 60 },
     '/api/coffees/**': { swr: 60 },
     '/api/brands/**': { swr: 60 },
+    // The signed-in user's own data, private notes included: never kept by a browser or proxy.
+    '/api/me/**': { headers: { 'cache-control': 'private, no-store' } },
   },
   experimental: {
     // On swr routes Nuxt would otherwise load a page's data from a separate _payload.json,

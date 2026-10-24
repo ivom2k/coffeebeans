@@ -4,6 +4,8 @@ import type { SessionUser } from '../features/auth/sessionUser.ts';
 declare module 'h3' {
   interface H3EventContext {
     // Set by server/middleware/session.ts when the request belongs to an active account.
+    // Never read behind an swr route: Nitro gives the cached render this same context, so
+    // anything derived from the user would be cached for every visitor.
     user?: SessionUser;
   }
 }
