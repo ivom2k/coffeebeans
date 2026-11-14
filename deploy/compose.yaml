@@ -59,6 +59,12 @@ services:
       NUXT_OAUTH_GOOGLE_REDIRECT_URL: https://kohvioad.eu/api/auth/google
       # false until launch: robots.txt then disallows everything and every page says noindex.
       NUXT_SITE_INDEXABLE: ${NUXT_SITE_INDEXABLE:?set NUXT_SITE_INDEXABLE in .env}
+      # Where the admin's photo uploads are written: the media volume below.
+      NUXT_MEDIA_DIR: /app/media
+    volumes:
+      # Coffee photos. A named volume outlives the container, as the database's does, so a
+      # redeploy keeps them. Caddy serves the same volume read-only at /media/.
+      - media:/app/media
     # No published ports: only Caddy reaches the app, over the Compose network. That's what
     # makes the X-Forwarded-For header Caddy sets trustworthy (§5).
     depends_on:
@@ -81,6 +87,9 @@ services:
       # hits Let's Encrypt's rate limits.
       - caddy_data:/data
       - caddy_config:/config
+      # Read-only: Caddy serves the photos the app writes and can't change them. Private uploads
+      # (Phase 7's suggestion photos) get a volume of their own that Caddy never mounts.
+      - media:/srv/media:ro
     depends_on:
       - app
     logging: *logging
@@ -95,3 +104,4 @@ volumes:
   pgdata:
   caddy_data:
   caddy_config:
+  media:

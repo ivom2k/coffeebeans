@@ -49,6 +49,8 @@ if (coffee.value && coffee.value.rawMean !== null) {
       name: fullName.value,
       brand: { '@type': 'Brand', 'name': coffee.value.brand.name },
       description: coffee.value.description ?? undefined,
+      // Relative; the schema.org module makes it absolute with the site URL.
+      image: coffee.value.imageUrl ?? undefined,
       aggregateRating: {
         ratingValue: coffee.value.rawMean,
         ratingCount: coffee.value.ratingCount,
@@ -83,8 +85,11 @@ if (coffee.value && coffee.value.rawMean !== null) {
     </div>
 
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
-      <CoffeeBeanArt
+      <CoffeeImage
+        :src="coffee.imageUrl"
+        :alt="$t('coffee.photoAlt', { name: fullName })"
         size="lg"
+        eager
         class="h-60 rounded-lg lg:w-80"
       />
 

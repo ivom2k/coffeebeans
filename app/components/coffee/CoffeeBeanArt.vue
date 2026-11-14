@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Stands in for the coffee's photo until image upload arrives (Phase 6).
+// Stands in for the photo of a coffee that has none (CoffeeImage.vue).
 const { size = 'sm' } = defineProps<{ size?: 'sm' | 'lg' }>();
 </script>
 

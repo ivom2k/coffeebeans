@@ -3,7 +3,28 @@
 
 kohvioad.eu {
 	encode zstd gzip
-	reverse_proxy app:3000
+
+	# No request body over 16 MB reaches the app, which reads bodies into memory. Room for the
+	# admin's photo uploads (the handler's own limit is 15 MB); anything bigger gets a 413 here.
+	request_body {
+		max_size 16MB
+	}
+
+	# Coffee photos, straight from the media volume, which the app writes and Caddy mounts
+	# read-only. Every upload gets a new file name, so a photo found here never changes and
+	# browsers may keep it for a year. Only existing files get that header: a 404 isn't cached.
+	# file_server lists no directories unless told to (`browse`).
+	handle_path /media/* {
+		root * /srv/media
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		header X-Content-Type-Options nosniff
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
 
 	# One JSON line per request on stdout, which Docker rotates. Client IPs are cut to their
 	# network prefix (/24 IPv4, /32 IPv6), so no full address is stored (§5). Caddy already

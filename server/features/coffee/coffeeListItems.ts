@@ -1,5 +1,6 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
 import type { CoffeeListItem, RankedCoffees } from '../../../shared/types/coffee.ts';
+import { coffeeThumbnailUrl } from '../../../shared/utils/coffeeImage.ts';
 import type { Database } from '../../db/client.ts';
 import {
   brand, coffeeBean, coffeeBeanMachineIssueSummary, coffeeBeanRatingSummary, type coffeeBeanStatuses,
@@ -28,6 +29,7 @@ export const selectCoffeeListRows = (db: Database) => {
       name: coffeeBean.name,
       brandName: brand.name,
       roastLevel: coffeeBean.roastLevel,
+      imagePath: coffeeBean.imagePath,
       status: coffeeBeanRatingSummary.status,
       ratingCount: coffeeBeanRatingSummary.ratingCount,
       rawMean: coffeeBeanRatingSummary.rawMean,
@@ -53,6 +55,7 @@ type CoffeeListRow = {
   name: string;
   brandName: string;
   roastLevel: number | null;
+  imagePath: string | null;
   status: (typeof coffeeBeanStatuses)[number];
   ratingCount: number;
   rawMean: number | null;
@@ -66,6 +69,7 @@ export const toCoffeeListItem = (row: CoffeeListRow, rules: Thresholds): CoffeeL
   brandName: row.brandName,
   roastLevel: row.roastLevel,
   archived: row.status === 'ARCHIVED',
+  thumbUrl: row.imagePath === null ? null : coffeeThumbnailUrl(row.imagePath),
   ratingCount: row.ratingCount,
   rawMean: row.rawMean,
   issueFlag: issueFlag({ answered: row.answered ?? 0, withIssues: row.withIssues ?? 0 }, rules),

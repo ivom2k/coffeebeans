@@ -3,7 +3,7 @@ import type { SessionUser } from '../features/auth/sessionUser.ts';
 
 declare module 'h3' {
   interface H3EventContext {
-    // Set by server/middleware/session.ts when the request belongs to an active account.
+    // Set by server/middleware/1.session.ts when the request belongs to an active account.
     // Never read behind an swr route: Nitro gives the cached render this same context, so
     // anything derived from the user would be cached for every visitor.
     user?: SessionUser;
@@ -20,8 +20,8 @@ export const requireUser = (event: H3Event): SessionUser => {
   return user;
 };
 
-// For server/api/admin/. The role is read from the database on every request, so it is the
-// check; hidden UI never is.
+// For server/api/admin/: server/middleware/2.admin.ts and every admin handler call it. The role
+// is read from the database on every request, so it is the check; hidden UI never is.
 export const requireAdmin = (event: H3Event): SessionUser => {
   const user = requireUser(event);
   if (user.role !== 'ADMIN') {

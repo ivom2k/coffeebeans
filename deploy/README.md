@@ -145,6 +145,25 @@ cd /opt/kohvioad/deploy
 docker compose run --rm migrate npm run db:seed
 ```
 
+### 11. Admin role
+
+The coffee editor at https://kohvioad.eu/admin is for accounts whose `app_user.role` is `ADMIN`; everyone signs up as `USER`. Sign in once with your Google account, then over the DBeaver tunnel (Routine operations below) find your row and promote it:
+
+```sql
+SELECT id, created_at FROM app_user WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT 5;
+UPDATE app_user SET role = 'ADMIN' WHERE id = <your id>;
+```
+
+Your row is the one created when you signed in; before launch it is the only one besides the seed's (whose `created_at` is the seed's time). The role is read from the database on every request, so the next page load sees it, with no new sign-in. `UPDATE 0` means the id matched no row.
+
+## Coffee photos
+
+The admin's uploads live in the named volume `kohvioad_media`: the app writes it at `/app/media`, and Caddy serves it read-only at `/media/`. Each upload is re-encoded to two WebP files (`coffee/<slug>-<random>.webp` and its `.thumb.webp`), and a replaced or removed photo's files are deleted.
+
+- **See it.** `docker volume ls` lists `kohvioad_media`; `docker compose exec app ls -la /app/media/coffee` lists the files. `ls -ld /app/media` must show the owner `node`; owned by `root`, every upload fails with `EACCES` in the app's log.
+- **Keep it.** Like `pgdata`, it survives `docker compose down` and every redeploy. `docker compose down -v` deletes it together with the database. The Phase 10 backups copy it along with the `pg_dump`.
+- **A 413 on upload** comes from Caddy's 16 MB body cap or the app's 15 MB limit: the photo is bigger than any phone photo should be.
+
 ## Routine operations
 
 All from `/opt/kohvioad/deploy`, where Compose finds `compose.yaml` and `.env`.

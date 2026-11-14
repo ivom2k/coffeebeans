@@ -11,6 +11,8 @@ export type CoffeeListItem = {
   brandName: string;
   roastLevel: number | null;
   archived: boolean;
+  // The list thumbnail; null shows the bean drawing.
+  thumbUrl: string | null;
   ratingCount: number;
   rawMean: number | null;
   issueFlag: MachineIssueFlag | null;
@@ -35,6 +37,7 @@ export type CoffeeDetails = {
   name: string;
   archived: boolean;
   roastLevel: number | null;
+  imageUrl: string | null;
   brand: { slug: string; name: string; countryCode: string | null };
   description: string | null;
   packages: { sizeG: number; gtin: string | null }[];

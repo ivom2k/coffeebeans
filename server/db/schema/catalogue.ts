@@ -2,12 +2,14 @@ import { sql } from 'drizzle-orm';
 import {
   bigint, char, check, index, integer, pgTable, primaryKey, smallint, text, timestamp, unique, varchar,
 } from 'drizzle-orm/pg-core';
+import { coffeeStatuses } from '../../../shared/types/catalogue.ts';
 import { isCountryCode, isOneOf, isSlug, locales, timestamps } from './common.ts';
 import { species } from './vocabularies.ts';
 
 // ARCHIVED = no longer sold, including sold-out limited releases. Archived coffees keep
-// their pages and ratings but leave the buying lists.
-export const coffeeBeanStatuses = ['DRAFT', 'PUBLISHED', 'ARCHIVED'] as const;
+// their pages and ratings but leave the buying lists. The list lives in shared/ because the
+// admin form offers the same statuses this CHECK allows.
+export const coffeeBeanStatuses = coffeeStatuses;
 
 export const brand = pgTable('brand', {
   id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),

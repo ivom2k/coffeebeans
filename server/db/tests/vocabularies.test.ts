@@ -1,7 +1,8 @@
 import { asc } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
+import { speciesCodes } from '../../../shared/types/catalogue.ts';
 import { beanSurfaceCodes, machineIssueCodes } from '../../../shared/types/rating.ts';
-import { beanSurface, machineIssue } from '../schema/index.ts';
+import { beanSurface, machineIssue, species } from '../schema/index.ts';
 import { closeTestDb, withRollback } from './helpers.ts';
 
 // The app's code lists double as i18n keys and API enums, so they must name exactly the rows
@@ -23,5 +24,13 @@ describe('vocabulary code lists', () => {
 
     // Assert
     expect(rows.map(row => row.code)).toEqual(beanSurfaceCodes);
+  }));
+
+  it('Should_MatchTheSpeciesRows_When_ReadInSortOrder', () => withRollback(async (tx) => {
+    // Act
+    const rows = await tx.select({ code: species.code }).from(species).orderBy(asc(species.sortOrder));
+
+    // Assert
+    expect(rows.map(row => row.code)).toEqual(speciesCodes);
   }));
 });

@@ -26,3 +26,6 @@ logs
 # Local docs
 CLAUDE.local.md
 /docs/
+
+# Coffee photos uploaded in development (production keeps them on a volume)
+/media/

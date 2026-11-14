@@ -1,6 +1,15 @@
+import { fileURLToPath } from 'node:url';
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxtjs/i18n', '@nuxtjs/seo', 'nuxt-auth-utils', '@nuxt/ui', '@nuxt/eslint'],
+  // In production Caddy serves the media volume at /media/. Locally the dev server serves the
+  // same folder, read from disk on each request, so a new upload shows at once.
+  $development: {
+    nitro: {
+      publicAssets: [{ baseURL: '/media', dir: fileURLToPath(new URL('./media', import.meta.url)), maxAge: 0 }],
+    },
+  },
   devtools: { enabled: true },
   app: {
     head: {
@@ -20,6 +29,9 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only. Set at runtime through NUXT_DATABASE_URL, so the built image holds no credentials.
     databaseUrl: '',
+    // Where coffee photos are written (NUXT_MEDIA_DIR). Relative to the working directory, so
+    // locally it is media/ in the repository; production mounts a volume at /app/media.
+    mediaDir: 'media',
     session: {
       // 30 days from sign-in, not extended by use. h3 also checks the age stored inside the
       // sealed cookie, so a copied cookie stops working then too.
@@ -39,6 +51,11 @@ export default defineNuxtConfig({
     '/api/brands/**': { swr: 60 },
     // The signed-in user's own data, private notes included: never kept by a browser or proxy.
     '/api/me/**': { headers: { 'cache-control': 'private, no-store' } },
+    // The admin renders in the browser only: its data is behind the role check, so the server
+    // has nothing to render for a visitor, and nothing of it is ever cached or indexed.
+    '/admin': { redirect: '/admin/kohvid' },
+    '/admin/**': { ssr: false, robots: false, headers: { 'cache-control': 'private, no-store' } },
+    '/api/admin/**': { headers: { 'cache-control': 'private, no-store' } },
   },
   experimental: {
     // On swr routes Nuxt would otherwise load a page's data from a separate _payload.json,

@@ -12,5 +12,8 @@ export const useFormatters = () => {
     formatScore: (mean: number) => formatScore(mean, language.value),
     formatPackageSize: (sizeG: number) => formatPackageSize(sizeG, language.value),
     countryName: (code: string) => regionNames.value.of(code) ?? code,
+    // "31.10.2026" in Estonian.
+    formatDate: (iso: string) =>
+      new Intl.DateTimeFormat(language.value, { day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date(iso)),
   };
 };

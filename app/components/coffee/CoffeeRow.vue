@@ -15,7 +15,11 @@ const { formatScore } = useFormatters();
       v-if="rank"
       class="w-5 shrink-0 text-center text-[15px] font-semibold text-muted"
     >{{ rank }}</span>
-    <CoffeeBeanArt class="size-13 rounded-md" />
+    <CoffeeImage
+      :src="coffee.thumbUrl"
+      alt=""
+      class="size-13 rounded-md"
+    />
     <span class="flex min-w-0 flex-1 flex-col gap-0.5">
       <span class="text-[13px] text-muted">{{ coffee.brandName }}</span>
       <span class="font-semibold text-highlighted">{{ coffee.name }}</span>

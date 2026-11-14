@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, ne, sql } from 'drizzle-orm';
 import type { CoffeePageResponse } from '../../../shared/types/coffee.ts';
+import { coffeeImageUrl } from '../../../shared/utils/coffeeImage.ts';
 import type { Database } from '../../db/client.ts';
 import type { locales } from '../../db/schema/common.ts';
 import {
@@ -34,6 +35,7 @@ export const getCoffeePage = async (
       slug: coffeeBean.slug,
       name: coffeeBean.name,
       roastLevel: coffeeBean.roastLevel,
+      imagePath: coffeeBean.imagePath,
       status: coffeeBeanRatingSummary.status,
       brandSlug: brand.slug,
       brandName: brand.name,
@@ -94,6 +96,7 @@ export const getCoffeePage = async (
       name: coffee.name,
       archived: coffee.status === 'ARCHIVED',
       roastLevel: coffee.roastLevel,
+      imageUrl: coffee.imagePath === null ? null : coffeeImageUrl(coffee.imagePath),
       brand: { slug: coffee.brandSlug, name: coffee.brandName, countryCode: coffee.brandCountryCode },
       description: translation?.description ?? null,
       packages,
