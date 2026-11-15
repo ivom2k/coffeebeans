@@ -22,6 +22,13 @@
       "when": 1792242247248,
       "tag": "0002_vocabularies",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794747208501,
+      "tag": "0003_inbound_guards",
+      "breakpoints": true
     }
   ]
 }

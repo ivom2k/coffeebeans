@@ -1,0 +1,4 @@
+CREATE INDEX "feedback_ip_hmac_idx" ON "feedback" USING btree ("ip_hmac","created_at") WHERE "feedback"."ip_hmac" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "suggestion" ADD CONSTRAINT "suggestion_details_size_chk" CHECK (octet_length("suggestion"."details"::text) <= 2000);--> statement-breakpoint
+ALTER TABLE "suggestion" ADD CONSTRAINT "suggestion_image_path_chk" CHECK ("suggestion"."image_path" IS NULL OR "suggestion"."image_path" ~ '^suggestion/[0-9a-f]{32}\.webp$');--> statement-breakpoint
+ALTER TABLE "feedback" ADD CONSTRAINT "feedback_page_path_chk" CHECK ("feedback"."page_path" IS NULL OR ("feedback"."page_path" LIKE '/%' AND "feedback"."page_path" NOT LIKE '//%'));

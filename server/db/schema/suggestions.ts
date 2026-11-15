@@ -35,7 +35,12 @@ export const suggestion = pgTable('suggestion', {
   check('suggestion_type_chk', isOneOf(t.suggestionType, suggestionTypes)),
   check('suggestion_status_chk', isOneOf(t.status, suggestionStatuses)),
   check('suggestion_details_chk', sql`jsonb_typeof(${t.details}) = 'object'`),
+  // The API validates every field; this bounds the column whatever wrote the row.
+  check('suggestion_details_size_chk', sql`octet_length(${t.details}::text) <= 2000`),
   check('suggestion_image_chk', sql`${t.imagePath} IS NULL OR ${t.status} = 'PENDING'`),
+  // Only a name the server generated. The admin's photo route reads the file this column names,
+  // so a row edited by hand can't point it at anything else on the disk.
+  check('suggestion_image_path_chk', sql`${t.imagePath} IS NULL OR ${t.imagePath} ~ '^suggestion/[0-9a-f]{32}\\.webp$'`),
   check('suggestion_result_chk', sql`
     (${t.suggestionType} = 'COFFEE_BEAN' AND ${t.resultingMachineModelId} IS NULL)
     OR (${t.suggestionType} = 'MACHINE_MODEL' AND ${t.resultingCoffeeBeanId} IS NULL)`),

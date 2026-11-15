@@ -32,10 +32,22 @@ export default defineNuxtConfig({
     // Where coffee photos are written (NUXT_MEDIA_DIR). Relative to the working directory, so
     // locally it is media/ in the repository; production mounts a volume at /app/media.
     mediaDir: 'media',
+    // Where uploads nobody but the admin may see are written (NUXT_PRIVATE_MEDIA_DIR): a
+    // suggestion's price-tag photo, until it is reviewed. No web server serves this folder;
+    // production mounts a volume of its own at /app/media-private, on the app only.
+    privateMediaDir: 'media-private',
+    // Whether X-Forwarded-For says who is asking (NUXT_TRUST_PROXY). True only behind Caddy,
+    // which sets it; anywhere else the header is the client's own claim, so the rate limiter
+    // uses the connection's address instead.
+    trustProxy: false,
     session: {
       // 30 days from sign-in, not extended by use. h3 also checks the age stored inside the
       // sealed cookie, so a copied cookie stops working then too.
       maxAge: 60 * 60 * 24 * 30,
+      // The library's default, written out because the CSRF defence rests on it: the browser
+      // leaves the cookie off writes that another site starts. server/middleware/0.guard.ts
+      // is the second check.
+      cookie: { sameSite: 'lax' },
     },
   },
   // Public read pages and their APIs are cached and revalidated in the background, so most

@@ -4,22 +4,48 @@
 kohvioad.eu {
 	encode zstd gzip
 
-	# No request body over 16 MB reaches the app, which reads bodies into memory. Room for the
-	# admin's photo uploads (the handler's own limit is 15 MB); anything bigger gets a 413 here.
-	request_body {
+	# The app reads request bodies into memory, so no body reaches it that is larger than its
+	# route needs. The app has the same caps (server/features/security/bodyLimits.ts): these
+	# stop an oversized body before it crosses to the app at all. A route that takes an upload
+	# gets its own matcher here and a row there; everything else gets the small default.
+	#
+	# The two matchers exclude each other, so exactly one cap applies to a request. The admin's
+	# photo upload: the handler's own limit is 15 MB.
+	@adminImage path_regexp ^/api/admin/coffees/[^/]+/image$
+	request_body @adminImage {
 		max_size 16MB
+	}
+	# Everything else sends JSON of a few kilobytes at most (the app's limit is 32 KiB).
+	@otherBodies not path_regexp ^/api/admin/coffees/[^/]+/image$
+	request_body @otherBodies {
+		max_size 64KB
 	}
 
 	# Coffee photos, straight from the media volume, which the app writes and Caddy mounts
 	# read-only. Every upload gets a new file name, so a photo found here never changes and
-	# browsers may keep it for a year. Only existing files get that header: a 404 isn't cached.
-	# file_server lists no directories unless told to (`browse`).
+	# browsers may keep it for a year. file_server lists no directories unless told to (`browse`).
 	handle_path /media/* {
 		root * /srv/media
-		@exists file
-		header @exists Cache-Control "public, max-age=31536000, immutable"
+
+		# The app writes only .webp files here, so nothing else is served: should a bug ever let
+		# someone put another file into the volume, it can't be fetched as a page from this
+		# origin. `file` also makes the cache header apply to existing files only.
+		@photo {
+			path *.webp
+			file
+		}
+		header @photo Cache-Control "public, max-age=31536000, immutable"
+		# The browser must use the type Caddy sends, never guess one from the bytes.
 		header X-Content-Type-Options nosniff
-		file_server
+		# A file from here may load nothing and run nothing, even if opened as a page.
+		header Content-Security-Policy "default-src 'none'"
+
+		handle @photo {
+			file_server
+		}
+		handle {
+			respond 404
+		}
 	}
 
 	handle {

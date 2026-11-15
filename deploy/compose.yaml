@@ -61,12 +61,36 @@ services:
       NUXT_SITE_INDEXABLE: ${NUXT_SITE_INDEXABLE:?set NUXT_SITE_INDEXABLE in .env}
       # Where the admin's photo uploads are written: the media volume below.
       NUXT_MEDIA_DIR: /app/media
+      # Where uploads only the admin may see are written: the media_private volume below.
+      NUXT_PRIVATE_MEDIA_DIR: /app/media-private
+      # Lets the app take the visitor's address from the X-Forwarded-For header Caddy sets, for
+      # the rate limiter. Only here: this app has no published port, so Caddy is the only thing
+      # that can send it that header. Quoted, because Compose wants environment values as text.
+      NUXT_TRUST_PROXY: "true"
     volumes:
       # Coffee photos. A named volume outlives the container, as the database's does, so a
       # redeploy keeps them. Caddy serves the same volume read-only at /media/.
       - media:/app/media
+      # Suggestion photos until they are reviewed. Mounted here and nowhere else: Caddy has no
+      # path to these files, so the only way to see one is the app's admin-only route.
+      - media_private:/app/media-private
     # No published ports: only Caddy reaches the app, over the Compose network. That's what
     # makes the X-Forwarded-For header Caddy sets trustworthy (§5).
+    #
+    # Limits, because from Phase 7 on visitors' uploads are decoded here. The server has 2 GB
+    # for this, Postgres and Caddy together.
+    # mem_limit: the most RAM the container may use. Past it the kernel kills the Node process
+    # (`docker inspect` then shows OOMKilled) and `restart: unless-stopped` starts it again,
+    # instead of Postgres being pushed into swap or killed in its place. Node sizes its heap
+    # from this limit. The app idles well under 300 MB; `docker stats --no-stream` shows it.
+    mem_limit: 900m
+    # pids_limit: the most processes and threads. Node, libuv and libvips use a few dozen; a
+    # bug that spawns without end stops here instead of exhausting the server.
+    pids_limit: 256
+    # no-new-privileges: nothing in the container can gain rights it didn't start with, such as
+    # through a setuid binary. The app runs as `node` and needs none.
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -87,8 +111,8 @@ services:
       # hits Let's Encrypt's rate limits.
       - caddy_data:/data
       - caddy_config:/config
-      # Read-only: Caddy serves the photos the app writes and can't change them. Private uploads
-      # (Phase 7's suggestion photos) get a volume of their own that Caddy never mounts.
+      # Read-only: Caddy serves the photos the app writes and can't change them. The private
+      # uploads' volume is deliberately not mounted here (a test checks it stays that way).
       - media:/srv/media:ro
     depends_on:
       - app
@@ -105,3 +129,4 @@ volumes:
   caddy_data:
   caddy_config:
   media:
+  media_private:

@@ -14,8 +14,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   appUser, brand, coffeeBean, machineManufacturer, machineModel, rating, ratingMachineIssue, userMachine,
 } from '../db/schema/index.ts';
+import type { BrandPageResponse } from '../../shared/types/brand.ts';
 import { maxMachinesPerAccount } from '../../shared/utils/machine.ts';
 import { closeTestDb, committedDb, createCoffee, createMachineModel, createUser, required } from '../db/tests/helpers.ts';
+import { bodyLimitFor } from '../features/security/bodyLimits.ts';
+import { buckets, limitRuleFor } from '../features/security/rateLimits.ts';
 import { gifImage, sidewaysPhotoWithLocation } from './images.ts';
 
 // The app built for production and run against the test database, requested over HTTP: what
@@ -31,7 +34,12 @@ import { gifImage, sidewaysPhotoWithLocation } from './images.ts';
 // anyone else, and that an admin's coffee save reaches the cached public pages at once.
 //
 // The account block holds what a signed-in user's own endpoints answer over HTTP, where the
-// feature tests stop at the function's result.
+// feature tests stop at the function's result, and shows each of them refuses a visitor.
+//
+// The request guard block shows that every endpoint that writes refuses a request from another
+// site and a body over its limit, and is counted by the rate limiter. The middleware that does
+// it runs for every route, so what these tables guard against is an endpoint added later that
+// nobody listed: a test fails until it has a row.
 
 const rootDir = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -49,6 +57,10 @@ const coffeeSlug = 'kanaari-segu';
 const brandSlug = 'kanaari';
 const adminBrandSlug = 'admini-rost';
 const adminCoffeeSlug = 'admini-rost-hommik';
+// A coffee that isn't public yet, under the same brand, so every list that shows the brand's
+// coffees would show it too if it forgot to leave drafts out.
+const draftCanary = `draft-canary-${randomUUID()}`;
+const draftSlug = 'kanaari-mustand';
 
 // Every page and public GET endpoint, with the file that serves it; a test below fails when
 // one is missing. The cache key is the whole URL, so the endpoints appear as the pages and
@@ -89,6 +101,34 @@ const adminRoutes = [
   { source: 'server/api/admin/coffees/[id]/image.delete.ts', method: 'DELETE', path: '/api/admin/coffees/1/image' },
 ];
 
+// Every endpoint for the signed-in user's own rows, with the file that serves it; a test below
+// fails when one is missing.
+const meRoutes = [
+  { source: 'server/api/me/machines/index.get.ts', method: 'GET', path: '/api/me/machines' },
+  { source: 'server/api/me/machines/index.post.ts', method: 'POST', path: '/api/me/machines' },
+  { source: 'server/api/me/machines/[id].patch.ts', method: 'PATCH', path: '/api/me/machines/1' },
+  { source: 'server/api/me/machines/[id].delete.ts', method: 'DELETE', path: '/api/me/machines/1' },
+  { source: 'server/api/me/ratings/[slug].get.ts', method: 'GET', path: `/api/me/ratings/${coffeeSlug}` },
+  { source: 'server/api/me/ratings/[slug].put.ts', method: 'PUT', path: `/api/me/ratings/${coffeeSlug}` },
+];
+
+// Writes outside admin/ and me/. Sign-out is the library's route, which the session middleware
+// answers itself; the feedback endpoint joins here.
+const otherWriteRoutes = [
+  { source: 'server/middleware/1.session.ts', method: 'DELETE', path: '/api/_auth/session' },
+];
+
+// Every request that can change something. Built from the tables above, so a row added there
+// is guarded here; a test below fails when a file that writes is in none of them.
+const writeRoutes = [...adminRoutes, ...meRoutes, ...otherWriteRoutes].filter(route => route.method !== 'GET');
+
+// The three ways a browser says a request came from somewhere else (decisions log §7).
+const foreignOrigins: { from: string; headers: Record<string, string> }[] = [
+  { from: 'another site', headers: { 'sec-fetch-site': 'cross-site' } },
+  { from: 'a subdomain', headers: { 'sec-fetch-site': 'same-site' } },
+  { from: 'an older browser on another site', headers: { origin: 'https://evil.example' } },
+];
+
 // The cookie a sign-in sets, sealed the way nuxt-auth-utils seals it.
 const signedInCookie = async (userId: number) => {
   const request = new IncomingMessage(new Socket());
@@ -100,12 +140,24 @@ const signedInCookie = async (userId: number) => {
   return `${sessionCookie}=${sealed}`;
 };
 
-type RouteResponse = { status: number; body: string };
+type RouteResponse = { status: number; body: string; setCookie: string[] };
 
 const request = async (path: string, cookie?: string): Promise<RouteResponse> => {
   const response = await fetch(path, { headers: cookie ? { cookie } : {} });
-  return { status: response.status, body: await response.text() };
+  return { status: response.status, body: await response.text(), setCookie: response.headers.getSetCookie() };
 };
+
+// The test server trusts X-Forwarded-For as production does behind Caddy, so a test that
+// counts requests gets an address of its own and doesn't use up another test's limit.
+const requestFrom = (address: string, path: string) => fetch(path, { headers: { 'x-forwarded-for': address } });
+
+// A body sent without a declared length, as chunks.
+const chunkedBody = () => new ReadableStream<Uint8Array>({
+  start(controller) {
+    controller.enqueue(new TextEncoder().encode('{}'));
+    controller.close();
+  },
+});
 
 // One request at a time and in this order: which request reaches the cache first is the point.
 const requestEach = async (paths: readonly string[], cookie?: string): Promise<Map<string, RouteResponse>> => {
@@ -143,6 +195,7 @@ describe('routes', async () => {
   beforeAll(async () => {
     const [brandRow] = await committedDb.insert(brand).values({ name: 'Kanaari', slug: brandSlug }).returning();
     const coffee = await createCoffee(committedDb, { slug: coffeeSlug, name: 'Segu', brandId: required(brandRow).id });
+    await createCoffee(committedDb, { slug: draftSlug, name: draftCanary, brandId: required(brandRow).id, status: 'DRAFT' });
     const model = await createMachineModel(committedDb);
     const author = await createUser(committedDb);
     const admin = await createUser(committedDb);
@@ -186,6 +239,7 @@ describe('routes', async () => {
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.adminId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.fullUserId));
     await committedDb.delete(coffeeBean).where(eq(coffeeBean.id, fixture.coffeeId));
+    await committedDb.delete(coffeeBean).where(eq(coffeeBean.slug, draftSlug));
     await committedDb.delete(coffeeBean).where(eq(coffeeBean.slug, adminCoffeeSlug));
     await committedDb.delete(brand).where(eq(brand.id, fixture.brandId));
     await committedDb.delete(brand).where(eq(brand.slug, adminBrandSlug));
@@ -197,12 +251,18 @@ describe('routes', async () => {
 
   // A production build against the test database. vitest.config.ts loads .env, so without
   // the overrides the server would connect to the development database and write photos into
-  // the repository.
+  // the repository. NUXT_TRUST_PROXY as in deploy/compose.yaml: the address comes from
+  // X-Forwarded-For, and a request without the header counts by its connection.
   await setup({
     rootDir,
     server: true,
     build: true,
-    env: { NUXT_DATABASE_URL: process.env.TEST_DATABASE_URL, NUXT_SESSION_PASSWORD: sessionPassword, NUXT_MEDIA_DIR: mediaDir },
+    env: {
+      NUXT_DATABASE_URL: process.env.TEST_DATABASE_URL,
+      NUXT_SESSION_PASSWORD: sessionPassword,
+      NUXT_MEDIA_DIR: mediaDir,
+      NUXT_TRUST_PROXY: 'true',
+    },
   });
 
   describe('public routes', () => {
@@ -276,8 +336,43 @@ describe('routes', async () => {
         expect(response?.status, path).toBe(200);
         expect(response?.body).not.toContain(noteCanary);
         expect(response?.body).not.toContain(nicknameCanary);
+        // A draft has no page yet, so its name appears nowhere a visitor can look.
+        expect(response?.body).not.toContain(draftCanary);
       }
     });
+
+    // Nitro stores a cached render's response headers and replays them, so a cookie set behind
+    // a cached route would go to every visitor (CLAUDE.md § Access). No public route sets one
+    // at all: a visitor who never signed in gets no cookie.
+    it.each(publicRoutes)('Should_SetNoCookie_When_Requesting $path', ({ path }) => {
+      // Act
+      const cookies = [asAuthor.get(path)?.setCookie, anonymous.get(path)?.setCookie];
+
+      // Assert
+      expect(cookies).toEqual([[], []]);
+    });
+
+    it('Should_ShowTheBrandWithoutItsDraft_When_ADraftSharesTheBrand', () => {
+      // Act
+      const brandPage = JSON.parse(anonymous.get(`/api/brands/${brandSlug}`)?.body ?? 'null') as BrandPageResponse;
+
+      // Assert: the routes above really list this brand's coffees, the draft's sibling.
+      expect([...brandPage.ranked, ...brandPage.unrated, ...brandPage.archived]).toHaveLength(1);
+    });
+
+    it.each([`/api/coffees/${draftSlug}`, `/kohv/${draftSlug}`, `/kohv/${draftSlug}/hinda`])(
+      'Should_Answer404_When_RequestingADraftAt %s',
+      async (path) => {
+        // Act: as its admin would too, since a public route never reads who is asking.
+        const responses = [await request(path), await request(path, fixture.adminCookie)];
+
+        // Assert
+        for (const response of responses) {
+          expect(response.status).toBe(404);
+          expect(response.body).not.toContain(draftCanary);
+        }
+      },
+    );
   });
 
   describe('admin routes', () => {
@@ -373,19 +468,42 @@ describe('routes', async () => {
       expect(response.headers.get('cache-control')).toBe('private, no-store');
     });
 
+    // An upload over the size limit is refused for every route in the request guard block.
     it.each([
-      ['an image over the size limit', () => Buffer.alloc(15 * 1024 * 1024 + 1), 'image/jpeg', 413],
-      ['a GIF', gifImage, 'image/gif', 422],
-    ] as const)('Should_RefuseTheUpload_When_ItIs %s', async (_case, makeImage, contentType, expected) => {
-      // Act
+      ['a GIF', gifImage, 'image/gif'],
+      ['a GIF sent as a JPEG', gifImage, 'image/jpeg'],
+      ['a web page sent as a JPEG', async () => Buffer.from('<!doctype html><script>alert(1)</script>'), 'image/jpeg'],
+    ] as const)('Should_RefuseTheUpload_When_ItIs %s', async (_case, makeImage, contentType) => {
+      // Act: the header is the client's claim; the bytes decide.
       const response = await uploadImage(`/api/admin/coffees/${fixture.coffeeId}/image`, fixture.adminCookie, await makeImage(), contentType);
 
       // Assert
-      expect(response.status).toBe(expected);
+      expect(response.status).toBe(422);
     });
   });
 
   describe('account routes', () => {
+    it('Should_ListEveryAccountEndpoint_When_CheckingTheRouteTable', () => {
+      // Act
+      const listed = meRoutes.map(route => route.source).toSorted();
+
+      // Assert
+      expect(listed).toEqual(sources('server/api/me/**/*.ts'));
+    });
+
+    // Before validation too: a body that would fail it still gets 401, not 400. A handler that
+    // forgot requireUser() would answer here with someone's rows, or a 400.
+    it.each(meRoutes)('Should_RefuseAVisitor_When_Requesting $method $path', async ({ method, path }) => {
+      // Arrange
+      const body = method === 'GET' || method === 'DELETE' ? undefined : {};
+
+      // Act
+      const anonymous = await send(method, path, undefined, body);
+
+      // Assert
+      expect(anonymous.status).toBe(401);
+    });
+
     // The limit itself is tested in addMyMachine.test.ts. This is its answer over HTTP, which
     // the add drawer reads: on a 409 it says why, where any other failure says "try again".
     it('Should_Answer409_When_AddingAMachineToAFullAccount', async () => {
@@ -401,5 +519,169 @@ describe('routes', async () => {
       expect([withRoom.status, full.status]).toEqual([201, 409]);
       expect(kept).toHaveLength(maxMachinesPerAccount);
     });
+  });
+
+  // server/middleware/0.guard.ts, before the session is loaded and before any handler. Every
+  // request here is a visitor's: refused by the guard it never reaches the 401 behind it, so
+  // the status alone shows which check answered.
+  describe('request guard', () => {
+    it('Should_ListEveryEndpointThatWrites_When_CheckingTheRouteTable', () => {
+      // Act
+      const listed = writeRoutes.map(route => route.source).filter(source => source.startsWith('server/api/')).toSorted();
+
+      // Assert
+      expect(listed).toEqual(sources('server/api/**/*.{post,put,patch,delete}.ts'));
+    });
+
+    it('Should_NameTheMethodItsFileServes_When_ARouteIsListed', () => {
+      // Act: a row with the wrong method would test a request the file never answers.
+      const mislabelled = [...adminRoutes, ...meRoutes]
+        .filter(route => !route.source.endsWith(`.${route.method.toLowerCase()}.ts`));
+
+      // Assert
+      expect(mislabelled).toEqual([]);
+    });
+
+    describe.each(foreignOrigins)('from $from', ({ headers }) => {
+      it.each(writeRoutes)('Should_RefuseTheWrite_When_Requesting $method $path', async ({ method, path }) => {
+        // Act
+        const response = await fetch(path, { method, headers });
+
+        // Assert
+        expect(response.status).toBe(403);
+        expect(response.statusText).toBe('Cross-site request refused');
+      });
+    });
+
+    it('Should_LetTheWriteThrough_When_ItComesFromThisSite', async () => {
+      // Act: the header a browser sends from the site's own pages.
+      const response = await fetch('/api/me/machines', {
+        method: 'POST',
+        headers: { 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' },
+        body: '{}',
+      });
+
+      // Assert: past the guard, and stopped by the sign-in check behind it.
+      expect(response.status).toBe(401);
+    });
+
+    it('Should_LeaveReadsAlone_When_AnotherSiteLinksHere', async () => {
+      // Act: following a link from elsewhere is how most visitors arrive.
+      const response = await fetch(`/kohv/${coffeeSlug}`, { headers: { 'sec-fetch-site': 'cross-site' } });
+
+      // Assert
+      expect(response.status).toBe(200);
+    });
+
+    it.each(writeRoutes)('Should_Answer413_When_TheBodyIsOverTheLimitOf $method $path', async ({ method, path }) => {
+      // Arrange: one byte more than the route allows, declared honestly.
+      const limit = bodyLimitFor(method, path);
+      const contentType = limit.kind === 'json' ? 'application/json' : 'image/jpeg';
+
+      // Act
+      const response = await fetch(path, { method, headers: { 'content-type': contentType }, body: new Uint8Array(limit.maxBytes + 1) });
+
+      // Assert
+      expect(response.status).toBe(413);
+    });
+
+    it.each(writeRoutes)('Should_Answer411_When_TheBodyHasNoDeclaredLengthFor $method $path', async ({ method, path }) => {
+      // Act: `duplex` is what Node's fetch needs to send a stream; the DOM types don't know it.
+      const response = await fetch(path, {
+        method,
+        headers: { 'content-type': 'application/json' },
+        body: chunkedBody(),
+        duplex: 'half',
+      } as RequestInit);
+
+      // Assert
+      expect(response.status).toBe(411);
+    });
+
+    it.each(writeRoutes.filter(route => bodyLimitFor(route.method, route.path).kind === 'json'))(
+      'Should_Answer415_When_JsonIsSentAsPlainTextTo $method $path',
+      async ({ method, path }) => {
+        // Act: the one content type a plain HTML form on another site can send JSON in.
+        const response = await fetch(path, { method, headers: { 'content-type': 'text/plain' }, body: '{}' });
+
+        // Assert
+        expect(response.status).toBe(415);
+      },
+    );
+
+    it.each(writeRoutes)('Should_HaveARateLimitRule_When_Requesting $method $path', ({ method, path }) => {
+      // Act
+      const rule = limitRuleFor(method, path);
+
+      // Assert: a bucket of its own, or a stated reason to have none, never the fallback.
+      expect(rule).toBeDefined();
+      expect(rule).not.toEqual({ bucket: buckets.unlisted, by: 'user' });
+    });
+  });
+
+  // server/middleware/3.rateLimit.ts. Each test asks from an address of its own.
+  describe('rate limits', () => {
+    const searchPath = '/api/search?q=kanaari';
+
+    it('Should_Answer429_When_OneAddressSearchesPastTheLimit', async () => {
+      // Arrange: Caddy appends the address it saw; what the client wrote in front of it changes
+      // with every request and must not count as a new visitor.
+      const from = (request: number) => `10.0.0.${request % 250}, 203.0.113.50`;
+      for (let request = 0; request < buckets.search.limit; request++) {
+        expect((await requestFrom(from(request), searchPath)).status).toBe(200);
+      }
+
+      // Act
+      const refused = await requestFrom(from(buckets.search.limit), searchPath);
+      const neighbour = await requestFrom('203.0.113.51', searchPath);
+
+      // Assert
+      expect(refused.status).toBe(429);
+      expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0);
+      expect(neighbour.status).toBe(200);
+    }, 60_000);
+
+    it('Should_CountAnIpv6SubscriberOnce_When_TheyChangeAddressWithinTheir64', async () => {
+      // Arrange
+      const from = (request: number) => `2001:db8:aa:bb::${(request + 1).toString(16)}`;
+      for (let request = 0; request < buckets.search.limit; request++) {
+        await requestFrom(from(request), searchPath);
+      }
+
+      // Act
+      const refused = await requestFrom(from(buckets.search.limit), searchPath);
+      const other64 = await requestFrom('2001:db8:aa:bc::1', searchPath);
+
+      // Assert
+      expect([refused.status, other64.status]).toEqual([429, 200]);
+    }, 60_000);
+
+    // The search page calls the endpoint inside the server while it renders, without the
+    // visitor's address. Counted, those calls would all land in one bucket and the page would
+    // show an error to everyone once sixty people had searched within a minute.
+    it('Should_ShowEveryVisitorTheirResults_When_ManySearchWithinAMinute', async () => {
+      // Act
+      const pages = [];
+      for (let visitor = 0; visitor < buckets.search.limit + 2; visitor++) {
+        const response = await requestFrom(`198.51.100.${visitor}`, '/otsing?q=kanaari');
+        pages.push({ status: response.status, found: (await response.text()).includes(`/kohv/${coffeeSlug}`) });
+      }
+
+      // Assert: the page answers 200 even when its search failed, so the result is the proof.
+      expect(pages.filter(page => page.status !== 200 || !page.found)).toEqual([]);
+    }, 60_000);
+
+    it('Should_CountTheSearchPageToo_When_OneAddressKeepsReloadingIt', async () => {
+      // Arrange
+      for (let request = 0; request < buckets.search.limit; request++) {
+        await requestFrom('203.0.113.60', '/otsing?q=kanaari');
+      }
+
+      // Act
+      const refused = await requestFrom('203.0.113.60', '/otsing?q=kanaari');
+
+      // Assert
+      expect(refused.status).toBe(429);
+    }, 60_000);
   });
 });

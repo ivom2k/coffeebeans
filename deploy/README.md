@@ -163,6 +163,38 @@ The admin's uploads live in the named volume `kohvioad_media`: the app writes it
 - **See it.** `docker volume ls` lists `kohvioad_media`; `docker compose exec app ls -la /app/media/coffee` lists the files. `ls -ld /app/media` must show the owner `node`; owned by `root`, every upload fails with `EACCES` in the app's log.
 - **Keep it.** Like `pgdata`, it survives `docker compose down` and every redeploy. `docker compose down -v` deletes it together with the database. The Phase 10 backups copy it along with the `pg_dump`.
 - **A 413 on upload** comes from Caddy's 16 MB body cap or the app's 15 MB limit: the photo is bigger than any phone photo should be.
+- **Only `.webp` is served.** Caddy answers 404 for any other file under `/media/`, so a file that got into the volume some other way can't be opened as a page of this site.
+
+## Private uploads
+
+Suggestion photos (Phase 7) wait for review in a second named volume, `kohvioad_media_private`, mounted at `/app/media-private` in the `app` container and nowhere else. Caddy has no mount of it, so no URL leads to these files; the only way to see one is the app's admin route.
+
+- **See it.** `docker volume ls` lists `kohvioad_media_private` after the first deploy that has it; `docker compose exec app ls -ld /app/media-private` must show the owner `node`, as for `media`.
+- **Check the isolation.** `docker compose config` prints the stack as Compose reads it: `media_private` appears under `app`'s volumes and not under `caddy`'s. `docker inspect kohvioad-caddy-1 --format "{{range .Mounts}}{{.Destination}} {{end}}"` lists what the running Caddy really mounts: `/srv/media`, `/etc/caddy`, `/data` and `/config`, nothing else.
+- **Keep it.** It survives redeploys like the others, and `docker compose down -v` deletes it with them. The files are short-lived by design (deleted at review), so the backups leave it out.
+
+## What the server refuses
+
+Three layers answer before any endpoint's own code runs. When a request fails, the status code says which one.
+
+| Status | Who answers | Meaning |
+|---|---|---|
+| 403 `Cross-site request refused` | the app (`server/middleware/0.guard.ts`) | A write (anything but GET) that didn't come from a page of https://kohvioad.eu. From `curl`, send no `Origin` header or the site's own. |
+| 411 | the app | A body sent in chunks, without `Content-Length`. Browsers always send the length. |
+| 413 | Caddy, or the app | A body over the route's cap. Caddy: 64 KB, and 16 MB for the admin's photo upload. The app: 32 KiB and 15 MiB (`server/features/security/bodyLimits.ts`). A new upload route needs both raised, or it answers 413 here first. |
+| 415 | the app | JSON sent with a `Content-Type` other than `application/json`. |
+| 429, with `Retry-After` | the app (`server/middleware/3.rateLimit.ts`) | Too many requests from one address or account: 60 searches a minute, 30 rating saves an hour, and so on (`server/features/security/rateLimits.ts`). The counts live in the app's memory, so a restart or deploy clears them. |
+| 503 `Too many uploads at once` | the app | More than five photo uploads in flight; they are decoded one at a time. |
+
+The rate limiter needs the visitor's address. The app takes it from the `X-Forwarded-For` header only because `compose.yaml` sets `NUXT_TRUST_PROXY=true`, and that is safe only because the app publishes no port: Caddy is the one thing that can reach it. If the app ever gets a `ports:` entry, anyone could send that header themselves.
+
+## The app container's limits
+
+`compose.yaml` caps the `app` container at 900 MB of RAM and 256 processes, because it decodes visitors' photos.
+
+- **See the usage.** `docker stats --no-stream` prints one line per container: `MEM USAGE / LIMIT` should read a few hundred MiB of `900MiB` for the app, and `PIDS` a few dozen.
+- **Was it killed?** `docker inspect kohvioad-app-1 --format "{{.State.OOMKilled}} restarts={{.RestartCount}}"`. `true` means the kernel stopped it at the limit; `restart: unless-stopped` has already started it again. If that happens without an upload in progress, the limit is too low for the app itself: raise `mem_limit` in `compose.yaml`.
+- **The limit and Node.** Node sizes its heap from the container's limit, so it collects garbage before it reaches the cap rather than being killed at it.
 
 ## Routine operations
 

@@ -9,7 +9,28 @@ export default withNuxt(
     rules: {
       // CLAUDE.md: never v-html on user-supplied text. A trusted use needs an explicit disable comment.
       'vue/no-v-html': 'error',
+      // CLAUDE.md § Access: every image is decoded through one module, which switches off the
+      // loaders the site doesn't accept before any upload can reach them.
+      'no-restricted-imports': ['error', {
+        paths: [{ name: 'sharp', message: 'Decode images through server/features/media/imageDecoder.ts.' }],
+      }],
+      // CLAUDE.md § Access: the client's address is read in one place, which knows when the
+      // forwarded header can be trusted. Read anywhere else, the visitor picks their own address.
+      'no-restricted-syntax': ['error',
+        { selector: 'CallExpression[callee.name=\'getRequestIP\']', message: 'Use clientSubject() from server/utils/client.ts.' },
+        { selector: 'Literal[value=/^x-forwarded-for$/i]', message: 'Use clientSubject() from server/utils/client.ts.' },
+      ],
     },
+  },
+  {
+    // The decoder itself, and tests, which build and inspect images.
+    files: ['server/features/media/imageDecoder.ts', '**/*.test.ts', 'server/tests/**'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
+  {
+    // The one reader, and tests, which send the header to show it isn't believed.
+    files: ['server/utils/client.ts', '**/*.test.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     // Tailwind class checks, the same ones the VS Code Tailwind extension shows, so they also

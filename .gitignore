@@ -29,3 +29,6 @@ CLAUDE.local.md
 
 # Coffee photos uploaded in development (production keeps them on a volume)
 /media/
+
+# Private uploads in development: suggestion photos, which only the admin sees
+/media-private/

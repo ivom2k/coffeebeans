@@ -19,5 +19,9 @@ export const feedback = pgTable('feedback', {
 }, t => [
   check('feedback_status_chk', isOneOf(t.status, feedbackStatuses)),
   check('feedback_message_chk', sql`length(btrim(${t.message})) > 0`),
+  // A path on this site. The inbox shows it as a link, so it must never be another site's URL.
+  check('feedback_page_path_chk', sql`${t.pagePath} IS NULL OR (${t.pagePath} LIKE '/%' AND ${t.pagePath} NOT LIKE '//%')`),
   index('feedback_new_idx').on(t.createdAt).where(sql`${t.status} = 'NEW'`),
+  // The daily limit counts one sender's recent feedback; the purge clears old hashes.
+  index('feedback_ip_hmac_idx').on(t.ipHmac, t.createdAt).where(sql`${t.ipHmac} IS NOT NULL`),
 ]);

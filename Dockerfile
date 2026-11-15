@@ -35,11 +35,11 @@ CMD ["npm", "run", "db:migrate"]
 FROM base AS app
 ENV NODE_ENV=production
 COPY --from=build /app/.output ./.output
-# The mount point of the media volume (deploy/compose.yaml), owned by `node`. Docker fills an
-# empty named volume from the image's directory, ownership included, so the app can write photos
-# there. Without this line the volume's root is owned by root and the first upload fails with
-# EACCES.
-RUN mkdir /app/media && chown node:node /app/media
+# The mount points of the media volumes (deploy/compose.yaml), owned by `node`: public coffee
+# photos, and the private uploads only the admin sees. Docker fills an empty named volume from
+# the image's directory, ownership included, so the app can write there. Without this line a
+# volume's root is owned by root and the first upload into it fails with EACCES.
+RUN mkdir /app/media /app/media-private && chown node:node /app/media /app/media-private
 # Root owns the files and the server runs as `node`, so it can't modify its own code.
 USER node
 EXPOSE 3000

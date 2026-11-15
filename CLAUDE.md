@@ -15,7 +15,8 @@ This is a solo learning project. When you touch infrastructure (Dockerfile, Comp
 - Production: Docker Compose on one Pilvio VPS in Tallinn, behind Caddy. CI/CD: GitHub Actions builds the images, pushes them to GHCR and deploys; the server only pulls.
 - Development happens on Windows and production on Linux, so `package.json` scripts must run on both (no `rm -rf`, no inline `VAR=value`).
 - Zod for schema validation.
-- Not decided yet, so ask before choosing or installing: what runs scheduled cleanup (a Nitro task or a cron container). Ask before adding any other dependency as well.
+- Scheduled work runs as Nitro scheduled tasks inside the app (`server/tasks/`), never a cron container.
+- Ask before adding any dependency.
 
 ## Layout
 
@@ -23,8 +24,9 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 
 - `app/` runs during SSR and in the browser: `pages/` is the router (folder path = URL), `layouts/` holds the page shells, plus `components/<feature>/`, `composables/use*.ts`, and `middleware/` for route guards (UX only, never access control).
 - `shared/` holds plain TypeScript imported by both sides: DTOs in `shared/types/`, pure helpers (GTIN, score formatting) in `shared/utils/`. It imports from neither `app/` nor `server/`.
-- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (session and admin checks, numbered because Nitro runs them in file-name order), `plugins/` (Nitro hooks, such as the browser cache header on cached routes), `utils/` (cross-cutting helpers such as `useDb()` and `requireUser()`).
+- `server/` never reaches the browser: `api/` (endpoints), `features/<feature>/<useCase>.ts` (queries and commands), `db/schema/` (Drizzle tables, views via `.existing()`), `db/migrations/` (generated and custom SQL), `middleware/` (numbered because Nitro runs them in file-name order: `0.guard` for the origin and body-size checks, `1.session`, `2.admin`, `3.rateLimit`), `plugins/` (Nitro hooks, such as the browser cache header on cached routes), `utils/` (cross-cutting helpers such as `useDb()`, `requireUser()` and `clientSubject()`).
 - `media/` (gitignored) holds coffee photos uploaded in development, which the dev server serves at `/media/`; production writes them to the `media` volume, which Caddy serves.
+- `media-private/` (gitignored) holds uploads only the admin may see. Nothing serves it; production writes them to the `media_private` volume, mounted on the app alone.
 - `Dockerfile` (root) builds the production images: `app`, and `migrate` for migrations and the seed. `deploy/` holds what runs on the server: `compose.yaml`, `caddy/Caddyfile`, `deploy.sh` and the runbook `README.md`.
 - Relative imports under `server/db/` end in `.ts` and use no path aliases: the seed script runs on Node's built-in TypeScript support, which resolves neither extensionless imports nor aliases. `server/features/` follows the same rule and uses no Nuxt auto-imports, because plain Vitest, without Nuxt, runs the feature tests that sit next to them.
 - UI text lives in `i18n/locales/`.
@@ -39,7 +41,7 @@ One Nuxt project, with top-level folders split by where the code runs. Inside ea
 - `npm run check`: lint (any warning fails; Tailwind classes included) and type check, the same as CI runs on every push to `main`. Run it before handing back a change.
 - `npm run lint:fix`: fixes lint findings and formatting. ESLint Stylistic is the formatter; there is no Prettier.
 - `npm run build`: production build.
-- `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction. One test, `server/tests/routes.test.ts`, builds the app (about a minute) and runs it against that database to check that no public route returns private data, that cached routes tell browsers to check back, that every admin endpoint refuses anyone but an admin, and that an admin's save reaches cached pages at once; it commits its own rows and removes them. A new page or endpoint must be added to its route tables, which a test checks.
+- `npm test`: Vitest. Drops and recreates the `_test` database in `TEST_DATABASE_URL`, migrates it, then runs the tests, each in a rolled-back transaction. One test, `server/tests/routes.test.ts`, builds the app (about a minute) and runs it against that database to check that no public route returns private data, shows a draft or sets a cookie, that cached routes tell browsers to check back, that every admin endpoint refuses anyone but an admin and every `/api/me/` endpoint refuses a visitor, that every endpoint that writes refuses a request from another site and a body over its limit and has a rate-limit rule, and that an admin's save reaches cached pages at once; it commits its own rows and removes them. A new page or endpoint must be added to its route tables, which a test checks.
 - `npm run db:generate`: a migration from changes in `server/db/schema/`. Add `-- --custom --name=<name>` for an empty file for hand-written SQL. Review the generated SQL before migrating.
 - `npm run db:migrate`: applies pending migrations to `NUXT_DATABASE_URL`.
 - `npm run db:seed`: the fictional seed, into a freshly migrated database only.
@@ -65,13 +67,16 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - A server middleware loads the user for every request with a session and clears the session if the account no longer exists or is anonymised.
 - No cookie before sign-in. Handlers read the user from `requireUser()` or `event.context.user`, never `getUserSession()`, which starts a session and sets a cookie when there is none.
 - Never hard-delete a user: account deletion calls `anonymise_user()`. `rating.user_id` has no cascade on purpose.
-- Every uploaded image is re-encoded with sharp, auto-rotated first, which strips EXIF and GPS. Suggestion photos get random names, live outside the directory Caddy serves, are shown only through an authenticated admin route, and are deleted at review.
-- IP addresses are stored only as an HMAC-SHA256 with a server secret, and only for anonymous feedback.
+- Every uploaded image is re-encoded with sharp, auto-rotated first, which strips EXIF and GPS. Images are decoded only through `server/features/media/imageDecoder.ts`, which switches off every loader but JPEG, PNG and WebP; no other file imports sharp (a lint rule). An upload handler takes `withImageSlot()` before it reads the body.
+- Suggestion photos get random names, live under `privateMediaDir`, which no web server mounts, are shown only through an authenticated admin route, and are deleted at review.
+- IP addresses are stored only as an HMAC-SHA256 with a server secret, and only for anonymous feedback. The client's address is read only through `clientSubject()` in `server/utils/client.ts`, never from `getRequestIP()` or the forwarded header (a lint rule): it alone knows when that header can be trusted.
 - Postgres is never public: Compose publishes it as `127.0.0.1:5432:5432` or not at all, because Docker's iptables rules bypass ufw.
 - The repository is public. No secrets, real catalogue data or photos go into git; secrets live in GitHub Secrets and on the server, and git holds only a small fictional seed.
 - State changes only through POST, PUT, PATCH or DELETE, never GET. The session cookie is `SameSite=Lax`, which browsers still send when another site links here, so a GET that writes could be triggered from anywhere. The OAuth callback is the one exception, guarded by its `state` cookie.
+- Every request passes `server/middleware/0.guard.ts` first: a write must come from this origin (subdomains don't count), a body is capped per route, and JSON is taken only as `application/json`. Never exempt a route from it. A route that takes an upload adds a row to `server/features/security/bodyLimits.ts` and a matcher to `deploy/caddy/Caddyfile`; a JSON endpoint needs nothing.
+- Every endpoint that writes has a row in `writeRoutes` in `server/tests/routes.test.ts` and a rule in `server/features/security/rateLimits.ts`, as does an uncached read that reaches Postgres for a visitor. Cached routes have no rule: the route cache answers them.
 - A handler under `server/api/me/` calls `requireUser()` before it reads a body, and every query for the user's own rows filters on that user's id, never on an id from the request alone.
-- Whatever a visitor or user can create is bounded: a length on every string, a size on every array and upload (from `Content-Length`, before the body is read), and a count of rows per account.
+- Whatever a visitor or user can create is bounded: a length on every string, a size on every array and upload (from `Content-Length`, before the body is read), a count of rows per account, and a site-wide count wherever opening more accounts would get around that.
 - A URL from user input is accepted only as `http:` or `https:`, shown with `rel="noopener noreferrer nofollow"`, and never fetched by the server.
 - File paths come from names the server generated, never from request input, and are checked against the expected pattern before a read or a delete.
 - Logs hold no request bodies, cookies, tokens or full IP addresses: log an error's message, not the error or the request.
