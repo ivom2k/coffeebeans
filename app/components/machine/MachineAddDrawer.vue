@@ -64,8 +64,12 @@ const submit = async () => {
     open.value = false;
     modelId.value = undefined;
     nickname.value = '';
-  } catch {
-    toast.add({ title: t('machine.saveFailed'), color: 'error', icon: 'i-lucide-circle-alert' });
+  } catch (failure) {
+    // A full account answers 409. "Try again" would be wrong there: only removing a machine helps.
+    const title = statusCodeOf(failure) === 409
+      ? t('machine.limitReached', maxMachinesPerAccount)
+      : t('machine.saveFailed');
+    toast.add({ title, color: 'error', icon: 'i-lucide-circle-alert' });
   } finally {
     saving.value = false;
   }

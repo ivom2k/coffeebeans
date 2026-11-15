@@ -84,29 +84,36 @@ if (coffee.value && coffee.value.rawMean !== null) {
       </span>
     </div>
 
-    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-8">
+    <!-- Photo, title, score. On a phone they stack in that order, which is also their order
+         here. From lg up the title runs across the top and the photo stands beside the score
+         card, so the two start on one line: beside the title, the photo's top met the small
+         brand line and its bottom ended partway down the card. -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start lg:gap-x-8">
+      <!-- A photo takes its width from its own shape, centred on a phone. The drawing that
+           stands in for one has no shape, so it gets the frame's width. -->
       <CoffeeImage
         :src="coffee.imageUrl"
         :alt="$t('coffee.photoAlt', { name: fullName })"
         size="lg"
         eager
-        class="h-60 rounded-lg lg:w-80"
+        class="h-60 rounded-lg lg:col-start-1 lg:row-start-2"
+        :class="coffee.imageUrl ? 'mx-auto lg:mx-0' : 'lg:w-80'"
       />
 
-      <div class="flex min-w-0 flex-1 flex-col gap-4">
-        <div class="flex flex-col gap-1">
-          <span class="text-[15px] text-muted">
-            <NuxtLinkLocale
-              :to="`/brand/${coffee.brand.slug}`"
-              class="inline-block py-2.5 font-semibold text-primary hover:text-primary-800"
-            >{{ coffee.brand.name }}</NuxtLinkLocale>
-            <template v-if="coffee.brand.countryCode"> · {{ countryName(coffee.brand.countryCode) }}</template>
-          </span>
-          <h1 class="text-[30px] leading-tight font-bold tracking-[-0.01em] text-highlighted">
-            {{ coffee.name }}
-          </h1>
-        </div>
+      <div class="flex flex-col gap-1 lg:col-span-2 lg:row-start-1">
+        <span class="text-[15px] text-muted">
+          <NuxtLinkLocale
+            :to="`/brand/${coffee.brand.slug}`"
+            class="inline-block py-2.5 font-semibold text-primary hover:text-primary-800"
+          >{{ coffee.brand.name }}</NuxtLinkLocale>
+          <template v-if="coffee.brand.countryCode"> · {{ countryName(coffee.brand.countryCode) }}</template>
+        </span>
+        <h1 class="text-[30px] leading-tight font-bold tracking-[-0.01em] text-highlighted">
+          {{ coffee.name }}
+        </h1>
+      </div>
 
+      <div class="flex min-w-0 flex-col gap-4 lg:col-start-2 lg:row-start-2">
         <template v-if="coffee.rawMean !== null">
           <CoffeeScoreSummary
             :raw-mean="coffee.rawMean"

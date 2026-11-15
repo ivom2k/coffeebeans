@@ -6,6 +6,11 @@ import type { MyMachine } from '#shared/types/machine';
 const { machines, status } = useMyMachines();
 const adding: Ref<boolean> = shallowRef(false);
 const editing: Ref<MyMachine | null> = shallowRef(null);
+
+// The server refuses a machine over the limit (shared/utils/machine.ts); at the limit the
+// button gives way to the reason, so nobody picks a model only to be told no.
+const max = maxMachinesPerAccount;
+const atLimit = computed(() => !canAddMachine(machines.value.length));
 </script>
 
 <template>
@@ -64,7 +69,14 @@ const editing: Ref<MyMachine | null> = shallowRef(null);
       {{ $t('machine.loadFailed') }}
     </p>
 
+    <p
+      v-if="atLimit"
+      class="text-sm/normal text-muted"
+    >
+      {{ $t('machine.limitReached', max) }}
+    </p>
     <UButton
+      v-else
       :label="$t('machine.add')"
       icon="i-lucide-plus"
       color="neutral"

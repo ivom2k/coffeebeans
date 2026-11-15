@@ -43,7 +43,8 @@
     "nicknamePlaceholder": "Nt Kodu või Töö",
     "save": "Salvesta",
     "remove": "Eemalda masin",
-    "saveFailed": "Salvestamine ebaõnnestus. Proovi uuesti."
+    "saveFailed": "Salvestamine ebaõnnestus. Proovi uuesti.",
+    "limitReached": "Ühel kontol saab olla kuni {count} masin. Uue lisamiseks eemalda olemasolev. | Ühel kontol saab olla kuni {count} masinat. Uue lisamiseks eemalda mõni olemasolev."
   },
   "machineKind": {
     "AUTOMATIC": "automaatmasin",
@@ -189,6 +190,7 @@
     "packages": "Pakend | Pakendid",
     "descriptionTitle": "Kirjeldus",
     "photoAlt": "{name} pakk",
+    "photoZoom": "Vaata fotot suuremalt",
     "metaRated": "{name}: {score} ({ratings}). Espressomasinate kasutajate hinnangud ja masinaprobleemid.",
     "metaUnrated": "{name}: pakendi andmed, espressomasinate kasutajate hinnangud ja masinaprobleemid."
   },

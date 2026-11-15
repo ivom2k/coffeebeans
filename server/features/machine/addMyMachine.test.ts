@@ -2,7 +2,12 @@ import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { userMachine } from '../../db/schema/index.ts';
 import { closeTestDb, createMachineModel, createManufacturer, createUser, withRollback } from '../../db/tests/helpers.ts';
+import { maxMachinesPerAccount } from '../../../shared/utils/machine.ts';
 import { addMyMachine } from './addMyMachine.ts';
+
+// One multi-row INSERT: a transaction is a single connection, so no queries in parallel.
+const machines = (count: number, userId: number, machineModelId: number) =>
+  Array.from({ length: count }, () => ({ userId, machineModelId }));
 
 describe('addMyMachine', () => {
   afterAll(closeTestDb);
@@ -37,5 +42,47 @@ describe('addMyMachine', () => {
     // Assert
     expect(result).toEqual({ kind: 'unknownModel' });
     expect(await tx.$count(userMachine, eq(userMachine.userId, user.id))).toBe(0);
+  }));
+
+  it('Should_RefuseTheMachine_When_AccountAlreadyHasTheMost', () => withRollback(async (tx) => {
+    // Arrange
+    const user = await createUser(tx);
+    const model = await createMachineModel(tx);
+    await tx.insert(userMachine).values(machines(maxMachinesPerAccount, user.id, model.id));
+
+    // Act
+    const result = await addMyMachine(tx, user.id, { machineModelId: model.id, nickname: null });
+
+    // Assert
+    expect(result).toEqual({ kind: 'limitReached' });
+    expect(await tx.$count(userMachine, eq(userMachine.userId, user.id))).toBe(maxMachinesPerAccount);
+  }));
+
+  it('Should_AddTheLastMachine_When_AccountIsOneBelowTheMost', () => withRollback(async (tx) => {
+    // Arrange
+    const user = await createUser(tx);
+    const model = await createMachineModel(tx);
+    await tx.insert(userMachine).values(machines(maxMachinesPerAccount - 1, user.id, model.id));
+
+    // Act
+    const result = await addMyMachine(tx, user.id, { machineModelId: model.id, nickname: null });
+
+    // Assert
+    expect(result).toMatchObject({ kind: 'added' });
+    expect(await tx.$count(userMachine, eq(userMachine.userId, user.id))).toBe(maxMachinesPerAccount);
+  }));
+
+  it('Should_CountOnlyTheUsersOwnMachines_When_AnotherAccountIsFull', () => withRollback(async (tx) => {
+    // Arrange
+    const user = await createUser(tx);
+    const other = await createUser(tx);
+    const model = await createMachineModel(tx);
+    await tx.insert(userMachine).values(machines(maxMachinesPerAccount, other.id, model.id));
+
+    // Act
+    const result = await addMyMachine(tx, user.id, { machineModelId: model.id, nickname: null });
+
+    // Assert
+    expect(result).toMatchObject({ kind: 'added' });
   }));
 });

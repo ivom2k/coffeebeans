@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   appUser, brand, coffeeBean, machineManufacturer, machineModel, rating, ratingMachineIssue, userMachine,
 } from '../db/schema/index.ts';
+import { maxMachinesPerAccount } from '../../shared/utils/machine.ts';
 import { closeTestDb, committedDb, createCoffee, createMachineModel, createUser, required } from '../db/tests/helpers.ts';
 import { gifImage, sidewaysPhotoWithLocation } from './images.ts';
 
@@ -28,6 +29,9 @@ import { gifImage, sidewaysPhotoWithLocation } from './images.ts';
 //
 // Admin routes check the role on the server. The admin block shows every one of them refuses
 // anyone else, and that an admin's coffee save reaches the cached public pages at once.
+//
+// The account block holds what a signed-in user's own endpoints answer over HTTP, where the
+// feature tests stop at the function's result.
 
 const rootDir = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -69,6 +73,7 @@ const publicRoutes = [
   { source: 'app/pages/admin/kohvid/index.vue', path: '/admin/kohvid' },
   { source: 'app/pages/admin/kohvid/uus.vue', path: '/admin/kohvid/uus' },
   { source: 'app/pages/admin/kohvid/[id].vue', path: '/admin/kohvid/1' },
+  { source: 'app/pages/admin/kohv/[slug].vue', path: `/admin/kohv/${coffeeSlug}` },
 ];
 
 // Every admin endpoint, with the file that serves it; a test below fails when one is missing.
@@ -130,8 +135,8 @@ const sources = (pattern: string, exclude?: RegExp) => globSync(pattern, { cwd: 
 
 describe('routes', async () => {
   let fixture: {
-    brandId: number; coffeeId: number; userId: number; adminId: number; modelId: number; manufacturerId: number;
-    authorCookie: string; adminCookie: string;
+    brandId: number; coffeeId: number; userId: number; adminId: number; fullUserId: number; modelId: number; manufacturerId: number;
+    authorCookie: string; adminCookie: string; fullUserCookie: string;
   };
 
   // Committed rather than rolled back: the server reads them over its own connection.
@@ -154,15 +159,21 @@ describe('routes', async () => {
       privateNote: noteCanary,
     }).returning();
     await committedDb.insert(ratingMachineIssue).values({ ratingId: required(ratingRow).id, machineIssueCode: 'GRINDER_JAMMED' });
+    // An account that already has as many machines as one may save.
+    const fullUser = await createUser(committedDb);
+    await committedDb.insert(userMachine)
+      .values(Array.from({ length: maxMachinesPerAccount }, () => ({ userId: fullUser.id, machineModelId: model.id })));
     fixture = {
       brandId: required(brandRow).id,
       coffeeId: coffee.id,
       userId: author.id,
       adminId: admin.id,
+      fullUserId: fullUser.id,
       modelId: model.id,
       manufacturerId: model.manufacturerId,
       authorCookie: await signedInCookie(author.id),
       adminCookie: await signedInCookie(admin.id),
+      fullUserCookie: await signedInCookie(fullUser.id),
     };
   });
 
@@ -173,6 +184,7 @@ describe('routes', async () => {
     await committedDb.delete(rating).where(eq(rating.coffeeBeanId, fixture.coffeeId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.userId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.adminId));
+    await committedDb.delete(appUser).where(eq(appUser.id, fixture.fullUserId));
     await committedDb.delete(coffeeBean).where(eq(coffeeBean.id, fixture.coffeeId));
     await committedDb.delete(coffeeBean).where(eq(coffeeBean.slug, adminCoffeeSlug));
     await committedDb.delete(brand).where(eq(brand.id, fixture.brandId));
@@ -370,6 +382,24 @@ describe('routes', async () => {
 
       // Assert
       expect(response.status).toBe(expected);
+    });
+  });
+
+  describe('account routes', () => {
+    // The limit itself is tested in addMyMachine.test.ts. This is its answer over HTTP, which
+    // the add drawer reads: on a 409 it says why, where any other failure says "try again".
+    it('Should_Answer409_When_AddingAMachineToAFullAccount', async () => {
+      // Arrange: the same request from both accounts.
+      const machine = { machineModelId: fixture.modelId, nickname: null };
+
+      // Act: the author has one machine, so theirs shows the request itself is fine.
+      const withRoom = await send('POST', '/api/me/machines', fixture.authorCookie, machine);
+      const full = await send('POST', '/api/me/machines', fixture.fullUserCookie, machine);
+      const kept = await (await send('GET', '/api/me/machines', fixture.fullUserCookie)).json() as unknown[];
+
+      // Assert
+      expect([withRoom.status, full.status]).toEqual([201, 409]);
+      expect(kept).toHaveLength(maxMachinesPerAccount);
     });
   });
 });

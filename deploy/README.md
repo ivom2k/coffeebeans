@@ -177,6 +177,74 @@ All from `/opt/kohvioad/deploy`, where Compose finds `compose.yaml` and `.env`.
 | Launch: allow indexing | set `NUXT_SITE_INDEXABLE=true` in `.env`, then `docker compose up -d` |
 
 - **Rollback.** A rollback works while that commit's images are still in GHCR. Drizzle has no down migrations, so the older app has to cope with the newer schema. That holds for additive changes (new tables or columns) and breaks for renames and drops.
-- **Postgres and Caddy updates.** Deploys never pull these two, so a deploy can't upgrade the database by surprise. Run the update command above monthly, or after a security release.
+- **Postgres and Caddy updates.** Step 3 of the monthly maintenance below.
 - **DBeaver.** **(cmd)** `ssh -N -L 5433:127.0.0.1:5432 <admin>@<ip>`, then connect DBeaver to `localhost:5433` with the credentials from `.env`.
 - **Restore.** Until launch there are no provider backups or snapshots. The server holds only the fictional seed, so a broken one is rebuilt from this runbook. Restoring the database from an off-provider dump arrives with launch.
+
+## Monthly maintenance
+
+What runs by itself: Ubuntu installs its security updates daily (`unattended-upgrades`), Caddy renews the certificate, Compose caps every container's log at 30 MB, and `deploy.sh` removes unused images. The rest is by hand, once a month, in this order, from `/opt/kohvioad/deploy`.
+
+1. **Did the automatic updates run?**
+
+   ```bash
+   systemctl list-timers 'apt-daily*'
+   sudo tail -n 30 /var/log/unattended-upgrades/unattended-upgrades.log
+   ```
+
+   `apt-daily-upgrade.timer` starts the daily install: its LAST column should be under a day old. The times move from day to day on purpose (a random delay, so not every Ubuntu server hits the mirrors at once), and they are in UTC, the server's clock. The log lists each run and what it installed. Its `Allowed origins are:` line shows that only Ubuntu's own packages qualify. Without `sudo`, `tail` fails with `Permission denied`: the folder is readable only by root and the `adm` group.
+
+2. **What the automatic updates skip:** Docker Engine, which comes from Docker's repository, and Ubuntu's non-security fixes (`-updates`).
+
+   ```bash
+   sudo apt update && sudo apt full-upgrade
+   sudo apt autoremove
+   ```
+
+   - `update` only refreshes the package lists. `full-upgrade` installs every newer version and, unlike `upgrade`, may add or remove packages when dependencies change, which a new kernel needs. Read its list before answering `y`, and answer `n` if it would remove something you don't expect.
+   - An update to `docker-ce` or `containerd.io` restarts the Docker daemon and every container with it: a few seconds of downtime.
+   - At the end, `needrestart` restarts the services whose libraries were updated. `Pending kernel upgrade!` means the new kernel runs only after a reboot (step 4). It also leaves `dbus` and `systemd-logind` for that reboot, under `Service restarts being deferred`, because restarting them on a live system can break it. `User sessions running outdated binaries` are your own SSH sessions.
+   - `autoremove` deletes packages nothing needs any more, mostly old kernels.
+   - `Could not get lock /var/lib/dpkg/lock-frontend … (unattended-upgr)` means the automatic update is running right now. Wait a few minutes and try again; never delete the lock file.
+
+3. **Postgres and Caddy.** Deploys never pull these two, so a deploy can't upgrade the database by surprise.
+
+   ```bash
+   docker compose pull db caddy
+   docker compose up -d
+   ```
+
+   - `pull` fetches the newest image for the tags `postgres:18` and `caddy:2`, so patch releases within the major version, without touching what runs. `up -d` then recreates only the containers whose image changed. The volumes stay, and with them the database and the certificates.
+   - The replaced images remain in `docker images` as `<none>` until a deploy's cleanup a week later.
+   - Postgres ships minor releases every quarter, on the second Thursday of February, May, August and November. After one, or after a security release of either, this step is worth running between the monthly rounds too.
+   - Never change the tag to a new major version here. Postgres 19 can't read 18's data folder, so the container would refuse to start. A major upgrade is a dump and restore, planned on its own.
+
+4. **Reboot, if an update is waiting for one.**
+
+   ```bash
+   cat /var/run/reboot-required.pkgs
+   ```
+
+   `No such file or directory` means none is needed. If it lists `linux-image-…` or `libc6`, run `sudo reboot` and log in again after a minute. Docker starts `db`, `app` and `caddy` again by itself (`restart: unless-stopped`), on the images they ran before. It doesn't wait for Postgres the way `docker compose up` does, but the app opens its database connection on the first query, so at most the first seconds' requests fail.
+
+5. **Check.**
+
+   ```bash
+   docker compose ps
+   df -h /
+   free -h
+   ssh-keygen -lf ~/.ssh/authorized_keys
+   ```
+
+   - `db` is `healthy`, `app` and `caddy` are `Up`, and `migrate` is missing or `Exited (0)`. `Restarting` is a crash loop: read `docker compose logs --tail 100 app`.
+   - The disk stays under about 80 %. `docker system df` shows Docker's share of it.
+   - Swap `used` that grows from month to month means 2 GB of RAM is getting tight.
+   - Exactly two keys: yours and `kohvioad-github-deploy`. Any other line is someone else's way in.
+   - **(cmd)** `curl -s -o NUL -w "%{http_code}" https://kohvioad.eu/` prints `200`. `-o NUL` throws the page away (NUL is Windows' empty file) and `-w` prints only the status code. Run from the PC, it tests the whole path: DNS, the firewall, the certificate, Caddy and the app.
+
+6. **The app image.** It gets Node and Debian fixes only when CI builds it, since the build pulls the newest `node:26-slim`. If nothing was pushed to `main` this month, **(cmd)** `gh workflow run ci.yml --ref main` (or GitHub → Actions → CI → Run workflow) rebuilds the same commit and deploys it. **(cmd)** `gh run watch` follows the run.
+
+Less often:
+
+- **Yearly:** renew `kohvioad.eu` at Zone.ee before it expires.
+- **Ubuntu itself:** no release upgrade. 26.04 LTS has standard support until 2031 (decisions log §8).

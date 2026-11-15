@@ -59,6 +59,7 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - Reading needs no account. Rating and suggestions require sign-in. Feedback needs none and is guarded by a honeypot, an in-app rate limit and a length cap.
 - Public routes get rating data only from the views `coffee_bean_rating_summary` and `coffee_bean_machine_issue_summary`, never from `rating` itself: `rating.private_note` is visible only to its author.
 - Public pages are cached with Nitro `swr` route rules, so their server output must be identical for every visitor. Anything per-user (the visitor's own rating, watchlist state, the signed-in header) renders in the browser. Code behind a cached route (its page, and every handler the page or the browser calls there) never reads the session user: Nitro renders it with the request's context, user included, and caches the result for everyone. A write that changes public output calls `clearPublicPageCache()` after its transaction commits.
+- Code behind a cached route never sets a cookie either: Nitro stores the render's response headers, `Set-Cookie` included, and replays them to every visitor.
 - Admin endpoints live under `server/api/admin/` and check the role on the server: `server/middleware/2.admin.ts` refuses non-admins before a body is read, and each handler calls `requireAdmin()` first. Admin pages render only in the browser (`ssr: false`). Hidden UI is not access control.
 - The database stores no email and no name. Sign-in requests only the `openid` scope.
 - A server middleware loads the user for every request with a session and clears the session if the account no longer exists or is anonymised.
@@ -68,6 +69,13 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - IP addresses are stored only as an HMAC-SHA256 with a server secret, and only for anonymous feedback.
 - Postgres is never public: Compose publishes it as `127.0.0.1:5432:5432` or not at all, because Docker's iptables rules bypass ufw.
 - The repository is public. No secrets, real catalogue data or photos go into git; secrets live in GitHub Secrets and on the server, and git holds only a small fictional seed.
+- State changes only through POST, PUT, PATCH or DELETE, never GET. The session cookie is `SameSite=Lax`, which browsers still send when another site links here, so a GET that writes could be triggered from anywhere. The OAuth callback is the one exception, guarded by its `state` cookie.
+- A handler under `server/api/me/` calls `requireUser()` before it reads a body, and every query for the user's own rows filters on that user's id, never on an id from the request alone.
+- Whatever a visitor or user can create is bounded: a length on every string, a size on every array and upload (from `Content-Length`, before the body is read), and a count of rows per account.
+- A URL from user input is accepted only as `http:` or `https:`, shown with `rel="noopener noreferrer nofollow"`, and never fetched by the server.
+- File paths come from names the server generated, never from request input, and are checked against the expected pattern before a read or a delete.
+- Logs hold no request bodies, cookies, tokens or full IP addresses: log an error's message, not the error or the request.
+- The API sends no CORS headers: only this site's own pages call it.
 
 ### Database
 
