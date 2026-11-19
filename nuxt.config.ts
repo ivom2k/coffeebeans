@@ -40,6 +40,10 @@ export default defineNuxtConfig({
     // which sets it; anywhere else the header is the client's own claim, so the rate limiter
     // uses the connection's address instead.
     trustProxy: false,
+    // The secret for the address hash stored with an anonymous feedback message
+    // (NUXT_IP_HMAC_KEY, 32 characters or more). Its own secret rather than the session
+    // password, so rotating one never breaks the other. Unset, feedback answers 503.
+    ipHmacKey: '',
     session: {
       // 30 days from sign-in, not extended by use. h3 also checks the age stored inside the
       // sealed cookie, so a copied cookie stops working then too.

@@ -104,6 +104,17 @@ describe('coffeeInputSchema', () => {
     expect(input.descriptions).toEqual({ et: null });
   });
 
+  it.each([
+    ['the name', { name: 'Crema\u0000Dolce' }],
+    ['the description', { descriptions: { et: 'Pehme\u0000segu.' } }],
+  ])('Should_RejectTheCoffee_When_ANulIsIn %s', (_, change) => {
+    // Act
+    const result = coffeeInputSchema.safeParse({ ...validCoffee, ...change });
+
+    // Assert
+    expect(result.success).toBe(false);
+  });
+
   it.each([0, 6, 2.5])('Should_RejectTheRoastLevel_When_ItIsOffTheScale (%s)', (roastLevel) => {
     // Act
     const result = coffeeInputSchema.safeParse({ ...validCoffee, roastLevel });
@@ -125,6 +136,14 @@ describe('brandInputSchema', () => {
   it('Should_RejectTheBrand_When_TheCountryIsNotAnIsoCode', () => {
     // Act
     const result = brandInputSchema.safeParse({ name: 'Põhjaröst', slug: 'pohjarost', countryCode: 'ee' });
+
+    // Assert
+    expect(result.success).toBe(false);
+  });
+
+  it('Should_RejectTheBrand_When_TheNameHasANul', () => {
+    // Act
+    const result = brandInputSchema.safeParse({ name: 'Põhja\u0000röst', slug: 'pohjarost', countryCode: null });
 
     // Assert
     expect(result.success).toBe(false);

@@ -52,6 +52,9 @@ services:
     environment:
       NUXT_DATABASE_URL: *database-url
       NUXT_SESSION_PASSWORD: ${NUXT_SESSION_PASSWORD:?set NUXT_SESSION_PASSWORD in .env}
+      # Keys the address hash stored with anonymous feedback. Required, so a server without it
+      # stops the deploy at `docker compose pull` instead of running a site whose feedback fails.
+      NUXT_IP_HMAC_KEY: ${NUXT_IP_HMAC_KEY:?set NUXT_IP_HMAC_KEY in .env}
       NUXT_OAUTH_GOOGLE_CLIENT_ID: ${NUXT_OAUTH_GOOGLE_CLIENT_ID:?set NUXT_OAUTH_GOOGLE_CLIENT_ID in .env}
       NUXT_OAUTH_GOOGLE_CLIENT_SECRET: ${NUXT_OAUTH_GOOGLE_CLIENT_SECRET:?set NUXT_OAUTH_GOOGLE_CLIENT_SECRET in .env}
       # Fixed rather than built from the request, so it never depends on the headers Caddy

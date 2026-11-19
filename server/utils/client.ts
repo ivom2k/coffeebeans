@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Socket } from 'node:net';
 import type { H3Event } from 'h3';
 import { addressSubject, clientAddress } from '../features/security/clientAddress.ts';
-import { hmacOfSubject } from '../features/security/ipHmac.ts';
+import { hmacOfSubject, minHmacKeyLength } from '../features/security/ipHmac.ts';
 import { createRateLimiter, type RateLimiter } from '../features/security/rateLimiter.ts';
 
 // The client's address as a subject to count against: an IPv4 address, or an IPv6 /64. The only
@@ -23,6 +23,14 @@ export const isInternalRequest = (event: H3Event): boolean => !(event.node.req.s
 const limiterKey = randomBytes(32);
 
 export const limiterSubject = (event: H3Event): string => hmacOfSubject(limiterKey, clientSubject(event));
+
+// The address as anonymous feedback stores it, under NUXT_IP_HMAC_KEY: the key has to outlive
+// the process, since the daily count per sender is read back from the table. Null when the key
+// is missing or too short, which the caller answers without storing anything.
+export const storedIpHmac = (event: H3Event): string | null => {
+  const key = useRuntimeConfig(event).ipHmacKey;
+  return key.length >= minHmacKeyLength ? hmacOfSubject(key, clientSubject(event)) : null;
+};
 
 let limiter: RateLimiter | undefined;
 

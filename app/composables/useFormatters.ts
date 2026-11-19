@@ -15,5 +15,9 @@ export const useFormatters = () => {
     // "31.10.2026" in Estonian.
     formatDate: (iso: string) =>
       new Intl.DateTimeFormat(language.value, { day: 'numeric', month: 'numeric', year: 'numeric' }).format(new Date(iso)),
+    // "14.10.2026, 09:12" in Estonian, in the browser's time zone.
+    formatDateTime: (iso: string) => new Intl.DateTimeFormat(language.value, {
+      day: 'numeric', month: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(iso)),
   };
 };

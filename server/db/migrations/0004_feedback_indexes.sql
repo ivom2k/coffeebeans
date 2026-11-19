@@ -1,0 +1,2 @@
+CREATE INDEX "feedback_user_id_idx" ON "feedback" USING btree ("user_id","created_at") WHERE "feedback"."user_id" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX "feedback_created_at_idx" ON "feedback" USING btree ("created_at");

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { beanSurfaceCodes, machineIssueCodes, type RatingInput } from '../../../shared/types/rating.ts';
+import { textSchema } from '../security/textInput.ts';
 
 const oneToFive = z.number().int().min(1).max(5);
 const sliderAnswer = oneToFive.nullable();
@@ -19,7 +20,7 @@ export const ratingInputSchema = z.object({
     .refine(codes => new Set(codes).size === codes.length, 'Each issue code at most once')
     .nullable(),
   // Blank means no note, stored as NULL rather than an empty string.
-  privateNote: z.string().trim().max(500).nullable().transform(note => note || null),
+  privateNote: textSchema({ max: 500, multiline: true }).nullable().transform(note => note || null),
 })
   // The issue question follows the machine's kind, and the summaries leave out answers given
   // without a machine (groupMachineIssues), so an answer without one is a client error.

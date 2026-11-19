@@ -12,9 +12,10 @@ import { createEvent, sealSession } from 'h3';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  appUser, brand, coffeeBean, machineManufacturer, machineModel, rating, ratingMachineIssue, userMachine,
+  appUser, brand, coffeeBean, feedback, machineManufacturer, machineModel, rating, ratingMachineIssue, userMachine,
 } from '../db/schema/index.ts';
 import type { BrandPageResponse } from '../../shared/types/brand.ts';
+import { maxFeedbackLength } from '../../shared/utils/feedback.ts';
 import { maxMachinesPerAccount } from '../../shared/utils/machine.ts';
 import { closeTestDb, committedDb, createCoffee, createMachineModel, createUser, required } from '../db/tests/helpers.ts';
 import { bodyLimitFor } from '../features/security/bodyLimits.ts';
@@ -47,6 +48,8 @@ const rootDir = fileURLToPath(new URL('../..', import.meta.url));
 // with it. nuxt-session is nuxt-auth-utils' cookie name, which the session middleware reads too.
 const sessionPassword = `test-only-session-password-${randomUUID()}`;
 const sessionCookie = 'nuxt-session';
+// The same for the key of the address hash stored with anonymous feedback.
+const ipHmacKey = `test-only-ip-hmac-key-${randomUUID()}`;
 
 // The photos the admin block uploads land here instead of the repository's media/.
 const mediaDir = mkdtempSync(join(tmpdir(), 'kohvioad-routes-media-'));
@@ -61,6 +64,8 @@ const adminCoffeeSlug = 'admini-rost-hommik';
 // coffees would show it too if it forgot to leave drafts out.
 const draftCanary = `draft-canary-${randomUUID()}`;
 const draftSlug = 'kanaari-mustand';
+// A feedback message, which only the admin inbox may show.
+const feedbackCanary = `feedback-canary-${randomUUID()}`;
 
 // Every page and public GET endpoint, with the file that serves it; a test below fails when
 // one is missing. The cache key is the whole URL, so the endpoints appear as the pages and
@@ -86,6 +91,7 @@ const publicRoutes = [
   { source: 'app/pages/admin/kohvid/uus.vue', path: '/admin/kohvid/uus' },
   { source: 'app/pages/admin/kohvid/[id].vue', path: '/admin/kohvid/1' },
   { source: 'app/pages/admin/kohv/[slug].vue', path: `/admin/kohv/${coffeeSlug}` },
+  { source: 'app/pages/admin/tagasiside.vue', path: '/admin/tagasiside' },
 ];
 
 // Every admin endpoint, with the file that serves it; a test below fails when one is missing.
@@ -99,6 +105,9 @@ const adminRoutes = [
   { source: 'server/api/admin/coffees/[id]/reviewed.post.ts', method: 'POST', path: '/api/admin/coffees/1/reviewed' },
   { source: 'server/api/admin/coffees/[id]/image.put.ts', method: 'PUT', path: '/api/admin/coffees/1/image' },
   { source: 'server/api/admin/coffees/[id]/image.delete.ts', method: 'DELETE', path: '/api/admin/coffees/1/image' },
+  { source: 'server/api/admin/feedback/index.get.ts', method: 'GET', path: '/api/admin/feedback' },
+  { source: 'server/api/admin/feedback/[id].patch.ts', method: 'PATCH', path: '/api/admin/feedback/1' },
+  { source: 'server/api/admin/inbox-counts.get.ts', method: 'GET', path: '/api/admin/inbox-counts' },
 ];
 
 // Every endpoint for the signed-in user's own rows, with the file that serves it; a test below
@@ -113,9 +122,10 @@ const meRoutes = [
 ];
 
 // Writes outside admin/ and me/. Sign-out is the library's route, which the session middleware
-// answers itself; the feedback endpoint joins here.
+// answers itself.
 const otherWriteRoutes = [
   { source: 'server/middleware/1.session.ts', method: 'DELETE', path: '/api/_auth/session' },
+  { source: 'server/api/feedback.post.ts', method: 'POST', path: '/api/feedback' },
 ];
 
 // Every request that can change something. Built from the tables above, so a row added there
@@ -150,6 +160,18 @@ const request = async (path: string, cookie?: string): Promise<RouteResponse> =>
 // The test server trusts X-Forwarded-For as production does behind Caddy, so a test that
 // counts requests gets an address of its own and doesn't use up another test's limit.
 const requestFrom = (address: string, path: string) => fetch(path, { headers: { 'x-forwarded-for': address } });
+
+// The feedback widget's request, from an address of its own: every send counts against it.
+const postFeedback = (address: string, body: unknown, cookie?: string) => fetch('/api/feedback', {
+  method: 'POST',
+  headers: { 'x-forwarded-for': address, 'content-type': 'application/json', ...(cookie ? { cookie } : {}) },
+  body: JSON.stringify(body),
+});
+
+const storedFeedback = (message: string) => committedDb
+  .select({ pagePath: feedback.pagePath, userId: feedback.userId, ipHmac: feedback.ipHmac })
+  .from(feedback)
+  .where(eq(feedback.message, message));
 
 // A body sent without a declared length, as chunks.
 const chunkedBody = () => new ReadableStream<Uint8Array>({
@@ -212,6 +234,8 @@ describe('routes', async () => {
       privateNote: noteCanary,
     }).returning();
     await committedDb.insert(ratingMachineIssue).values({ ratingId: required(ratingRow).id, machineIssueCode: 'GRINDER_JAMMED' });
+    // Sent from the coffee's page by its rater, before the public block requests anything.
+    await committedDb.insert(feedback).values({ message: feedbackCanary, pagePath: `/kohv/${coffeeSlug}`, userId: author.id });
     // An account that already has as many machines as one may save.
     const fullUser = await createUser(committedDb);
     await committedDb.insert(userMachine)
@@ -234,6 +258,8 @@ describe('routes', async () => {
   // coffee's packages go with their parents. The admin block's coffee and brand were committed
   // by the server.
   afterAll(async () => {
+    // Every feedback row: the fixture's and whatever the server stored for the tests below.
+    await committedDb.delete(feedback);
     await committedDb.delete(rating).where(eq(rating.coffeeBeanId, fixture.coffeeId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.userId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.adminId));
@@ -260,6 +286,7 @@ describe('routes', async () => {
     env: {
       NUXT_DATABASE_URL: process.env.TEST_DATABASE_URL,
       NUXT_SESSION_PASSWORD: sessionPassword,
+      NUXT_IP_HMAC_KEY: ipHmacKey,
       NUXT_MEDIA_DIR: mediaDir,
       NUXT_TRUST_PROXY: 'true',
     },
@@ -338,6 +365,7 @@ describe('routes', async () => {
         expect(response?.body).not.toContain(nicknameCanary);
         // A draft has no page yet, so its name appears nowhere a visitor can look.
         expect(response?.body).not.toContain(draftCanary);
+        expect(response?.body).not.toContain(feedbackCanary);
       }
     });
 
@@ -518,6 +546,109 @@ describe('routes', async () => {
       // Assert
       expect([withRoom.status, full.status]).toEqual([201, 409]);
       expect(kept).toHaveLength(maxMachinesPerAccount);
+    });
+  });
+
+  // The one write open to visitors. Each test sends from an address of its own, since every
+  // request it makes, refused or not, counts against that address's five an hour.
+  describe('feedback', () => {
+    it('Should_StoreTheHashAndThePathnameOnly_When_AVisitorSends', async () => {
+      // Arrange
+      const message = `Visitor ${randomUUID()}`;
+
+      // Act
+      const response = await postFeedback('203.0.113.80', { message, pagePath: '/kohv/x?q=secret#frag', website: '' });
+
+      // Assert: a visitor who never signed in still has no cookie afterwards.
+      expect(response.status).toBe(201);
+      expect(response.headers.getSetCookie()).toEqual([]);
+      const [row] = await storedFeedback(message);
+      expect(row).toMatchObject({ pagePath: '/kohv/x', userId: null });
+      expect(row?.ipHmac).toMatch(/^[0-9a-f]{64}$/);
+    });
+
+    it.each(['https://evil.example', '//evil.example', '/.//evil.example'])(
+      'Should_StoreNoPage_When_ThePathLeavesTheSite (%s)',
+      async (pagePath) => {
+        // Arrange
+        const message = `Path ${randomUUID()}`;
+
+        // Act
+        const response = await postFeedback('203.0.113.81', { message, pagePath });
+
+        // Assert
+        expect(response.status).toBe(201);
+        expect(await storedFeedback(message)).toMatchObject([{ pagePath: null }]);
+      },
+    );
+
+    it('Should_StoreTheUserAndNoHash_When_ASignedInUserSends', async () => {
+      // Arrange
+      const message = `User ${randomUUID()}`;
+
+      // Act
+      const response = await postFeedback('203.0.113.82', { message, pagePath: '/' }, fixture.authorCookie);
+
+      // Assert
+      expect(response.status).toBe(201);
+      expect(await storedFeedback(message)).toEqual([{ pagePath: '/', userId: fixture.userId, ipHmac: null }]);
+    });
+
+    it('Should_AnswerAsIfSentAndStoreNothing_When_TheHoneypotIsFilled', async () => {
+      // Arrange
+      const message = `Bot ${randomUUID()}`;
+
+      // Act
+      const response = await postFeedback('203.0.113.83', { message, pagePath: '/', website: 'https://spam.example' });
+
+      // Assert
+      expect(response.status).toBe(201);
+      expect(await storedFeedback(message)).toEqual([]);
+    });
+
+    it.each([
+      ['too long', 'x'.repeat(maxFeedbackLength + 1)],
+      ['only whitespace', ' \n\t '],
+      ['holding a NUL', 'Tere\u0000kohv'],
+    ])('Should_Answer400_When_TheMessageIs %s', async (_, message) => {
+      // Act
+      const response = await postFeedback('203.0.113.84', { message, pagePath: '/' });
+
+      // Assert
+      expect(response.status).toBe(400);
+    });
+
+    it('Should_Answer429_When_OneAddressSendsASixthMessageWithinAnHour', async () => {
+      // Arrange: what the client writes in front of Caddy's entry changes with every request.
+      const from = (request: number) => `10.0.1.${request}, 203.0.113.85`;
+      for (let request = 0; request < buckets.feedback.limit; request++) {
+        expect((await postFeedback(from(request), { message: `Flood ${request}`, pagePath: '/' })).status).toBe(201);
+      }
+
+      // Act
+      const refused = await postFeedback(from(buckets.feedback.limit), { message: 'Flood', pagePath: '/' });
+
+      // Assert
+      expect(refused.status).toBe(429);
+      expect(Number(refused.headers.get('retry-after'))).toBeGreaterThan(0);
+    });
+
+    it('Should_ShowTheMessageWithoutWhoSentIt_When_TheAdminReadsTheInbox', async () => {
+      // Arrange: a visitor's message, whose stored hash must not reach the inbox.
+      const message = `Inbox ${randomUUID()}`;
+      await postFeedback('203.0.113.86', { message, pagePath: '/' });
+      const [stored] = await storedFeedback(message);
+
+      // Act
+      const response = await send('GET', '/api/admin/feedback?status=NEW', fixture.adminCookie);
+      const body = await response.text();
+
+      // Assert
+      expect(response.status).toBe(200);
+      expect(body).toContain(message);
+      expect(body).toContain(feedbackCanary);
+      expect(body).not.toMatch(/ipHmac|ip_hmac|userId|user_id/);
+      expect(body).not.toContain(required(stored?.ipHmac ?? undefined));
     });
   });
 

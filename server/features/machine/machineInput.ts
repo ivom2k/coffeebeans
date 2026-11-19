@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import type { MyMachineInput } from '../../../shared/types/machine.ts';
+import { textSchema } from '../security/textInput.ts';
 
 // 'Kodu', 'Töö'. Blank means no nickname, stored as NULL rather than an empty string.
-export const nicknameSchema = z.string().trim().max(50).nullish().transform(nickname => nickname || null);
+export const nicknameSchema = textSchema({ max: 50 }).nullish().transform(nickname => nickname || null);
 
 export const addMachineSchema = z.object({
   machineModelId: z.number().int().positive(),

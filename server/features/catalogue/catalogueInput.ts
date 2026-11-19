@@ -6,6 +6,7 @@ import { speciesShare } from '../../../shared/utils/catalogue.ts';
 import { countryCodes } from '../../../shared/utils/countries.ts';
 import { toGtin14 } from '../../../shared/utils/gtin.ts';
 import { slugPattern } from '../../../shared/utils/slug.ts';
+import { textSchema } from '../security/textInput.ts';
 
 // Checked here too, so a bad slug is a 400 rather than a failed insert.
 const slug = (max: number) => z.string().trim().min(1).max(max).regex(slugPattern);
@@ -27,7 +28,7 @@ const distinct = <T>(values: readonly T[]) => new Set(values).size === values.le
 
 export const coffeeInputSchema = z.object({
   brandId: z.number().int().positive(),
-  name: z.string().trim().min(1).max(150),
+  name: textSchema({ min: 1, max: 150 }),
   slug: slug(200),
   status: z.enum(coffeeStatuses),
   roastLevel: z.number().int().min(1).max(5).nullable(),
@@ -39,11 +40,11 @@ export const coffeeInputSchema = z.object({
     .refine(rows => speciesShare(rows).valid, 'Percentages must add up to 100 when every species has one'),
   origins: z.array(z.enum(countryCodes)).max(30).refine(distinct, 'Each country at most once'),
   // Blank means no description, stored as no row rather than an empty one.
-  descriptions: z.object({ et: z.string().trim().max(2000).nullable().transform(text => text || null) }),
+  descriptions: z.object({ et: textSchema({ max: 2000, multiline: true }).nullable().transform(text => text || null) }),
 }) satisfies z.ZodType<CoffeeEditorInput>;
 
 export const brandInputSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  name: textSchema({ min: 1, max: 100 }),
   slug: slug(120),
   countryCode: z.enum(countryCodes).nullable(),
 }) satisfies z.ZodType<BrandInput>;

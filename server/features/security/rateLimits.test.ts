@@ -11,6 +11,7 @@ describe('limitRuleFor', () => {
     ['adding a machine', 'POST', '/api/me/machines', buckets.machineWrite, 'user'],
     ['renaming a machine', 'PATCH', '/api/me/machines/7', buckets.machineWrite, 'user'],
     ['removing a machine', 'DELETE', '/api/me/machines/7', buckets.machineWrite, 'user'],
+    ['sending feedback', 'POST', '/api/feedback', buckets.feedback, 'user'],
   ] as const)('Should_Count_When_ItIs %s', (_case, method, path, bucket, by) => {
     // Act
     const rule = limitRuleFor(method, path);

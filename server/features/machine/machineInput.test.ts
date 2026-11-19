@@ -28,6 +28,14 @@ describe('machine input', () => {
     expect(result.success).toBe(false);
   });
 
+  it.each([['a NUL', 'Ko\u0000du'], ['a line break', 'Ko\ndu']])('Should_Reject_When_NicknameHas %s', (_, nickname) => {
+    // Act
+    const result = updateMachineSchema.safeParse({ nickname });
+
+    // Assert
+    expect(result.success).toBe(false);
+  });
+
   it('Should_Reject_When_ModelIdIsNotAPositiveInteger', () => {
     // Act
     const results = [0, 1.5, '3'].map(machineModelId => addMachineSchema.safeParse({ machineModelId }));

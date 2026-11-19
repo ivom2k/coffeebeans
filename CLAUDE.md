@@ -77,7 +77,9 @@ Solo project: commits go straight to `main`, with no feature branches or pull re
 - Every endpoint that writes has a row in `writeRoutes` in `server/tests/routes.test.ts` and a rule in `server/features/security/rateLimits.ts`, as does an uncached read that reaches Postgres for a visitor. Cached routes have no rule: the route cache answers them.
 - A handler under `server/api/me/` calls `requireUser()` before it reads a body, and every query for the user's own rows filters on that user's id, never on an id from the request alone.
 - Whatever a visitor or user can create is bounded: a length on every string, a size on every array and upload (from `Content-Length`, before the body is read), a count of rows per account, and a site-wide count wherever opening more accounts would get around that.
+- Every text field the API takes, in a body or a query, goes through `textSchema()` (`server/features/security/textInput.ts`), never a bare `z.string()`: it trims, normalises line endings and refuses control characters, so a NUL is a 400 instead of a 500 from Postgres. Codes, slugs and GTINs keep their own stricter checks.
 - A URL from user input is accepted only as `http:` or `https:`, shown with `rel="noopener noreferrer nofollow"`, and never fetched by the server.
+- A path from a request that becomes a redirect or a link goes through `toLocalPath()` or `toPagePath()` (`shared/utils/localPath.ts`), on the server and again in the component that renders it.
 - File paths come from names the server generated, never from request input, and are checked against the expected pattern before a read or a delete.
 - Logs hold no request bodies, cookies, tokens or full IP addresses: log an error's message, not the error or the request.
 - The API sends no CORS headers: only this site's own pages call it.

@@ -18,6 +18,9 @@ export const buckets = {
   // from Postgres.
   ratingSave: { name: 'ratingSave', limit: 30, windowMs: hour },
   machineWrite: { name: 'machineWrite', limit: 30, windowMs: hour },
+  // The one write a visitor can make without signing in. The daily caps per sender and for the
+  // whole site are counted from the table (shared/utils/feedback.ts).
+  feedback: { name: 'feedback', limit: 5, windowMs: hour },
   unlisted: { name: 'unlisted', limit: 30, windowMs: hour },
 } as const satisfies Record<string, Bucket>;
 
@@ -33,6 +36,8 @@ const rules: readonly { methods: readonly string[]; pattern: RegExp; rule: Limit
   { methods: ['PUT'], pattern: /^\/api\/me\/ratings\/[^/]+$/, rule: { bucket: buckets.ratingSave, by: 'user' } },
   { methods: ['POST'], pattern: /^\/api\/me\/machines$/, rule: { bucket: buckets.machineWrite, by: 'user' } },
   { methods: ['PATCH', 'DELETE'], pattern: /^\/api\/me\/machines\/[^/]+$/, rule: { bucket: buckets.machineWrite, by: 'user' } },
+  // By the account when signed in, otherwise by the address.
+  { methods: ['POST'], pattern: /^\/api\/feedback$/, rule: { bucket: buckets.feedback, by: 'user' } },
   // The role check is the limit: only the admin gets past server/middleware/2.admin.ts.
   { methods: ['POST', 'PUT', 'PATCH', 'DELETE'], pattern: /^\/api\/admin\//, rule: 'none' },
   // Sign-out only ends the caller's own session.

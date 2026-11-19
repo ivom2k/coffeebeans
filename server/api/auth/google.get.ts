@@ -1,7 +1,7 @@
 import type { H3Event } from 'h3';
 import { z } from 'zod';
+import { toLocalPath } from '../../../shared/utils/localPath.ts';
 import { findOrCreateGoogleUser } from '../../features/auth/findOrCreateGoogleUser.ts';
-import { toLocalPath } from '../../features/auth/returnPath.ts';
 
 // Sign-in with Google, both legs: without `code` it sends the browser to Google, and Google
 // sends it back here with one. Registered as the redirect URI of the Google OAuth clients.

@@ -85,4 +85,13 @@ describe('rating input', () => {
     // Assert
     expect(result.success).toBe(false);
   });
+
+  it('Should_KeepLineBreaksButRejectANul_When_TheNoteHasThem', () => {
+    // Act: Postgres refuses a NUL, which would otherwise be a 500.
+    const lines = ratingInputSchema.parse({ ...unanswered, privateNote: 'Jahvatus 8\r\nVesi 92' });
+    const nul = ratingInputSchema.safeParse({ ...unanswered, privateNote: 'Jahvatus\u00008' });
+
+    // Assert
+    expect([lines.privateNote, nul.success]).toEqual(['Jahvatus 8\nVesi 92', false]);
+  });
 });

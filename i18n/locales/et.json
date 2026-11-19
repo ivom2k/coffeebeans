@@ -212,6 +212,8 @@
     "viewSite": "Vaata avalikku lehte",
     "nav": "Haldus",
     "coffees": "Kohvid",
+    "feedback": "Tagasiside",
+    "newCount": "{count} uus | {count} uut",
     "signInText": "Halduslehtede nägemiseks logi sisse.",
     "forbiddenTitle": "Sul pole siia ligipääsu",
     "forbiddenText": "Halduslehti näevad ainult administraatorid.",
@@ -311,6 +313,38 @@
       "slugTaken": "See aadress on juba kasutusel.",
       "failed": "Brändi lisamine ebaõnnestus. Proovi uuesti."
     }
+  },
+  "feedback": {
+    "open": "Tagasiside",
+    "title": "Märkasid viga või on idee?",
+    "message": "Sinu sõnum",
+    "placeholder": "Nt kohvi lehel on vale röstiaste",
+    "noAccount": "Kontot pole vaja",
+    "count": "{count} / {max}",
+    "send": "Saada",
+    "sent": "Aitäh! Sõnum on saadetud.",
+    "tooMany": "Oled saatnud palju sõnumeid järjest. Proovi hiljem uuesti.",
+    "failed": "Saatmine ebaõnnestus. Proovi uuesti."
+  },
+  "feedbackInbox": {
+    "title": "Tagasiside",
+    "statusTabs": "Staatus",
+    "status": {
+      "NEW": "Uued",
+      "READ": "Loetud",
+      "DONE": "Tehtud"
+    },
+    "newWithCount": "Uued ({count})",
+    "markAs": {
+      "NEW": "Märgi uueks",
+      "READ": "Märgi loetuks",
+      "DONE": "Tehtud"
+    },
+    "anonymous": "Anonüümne",
+    "signedIn": "Sisse logitud kasutaja",
+    "noPage": "Leht teadmata",
+    "empty": "Siin pole ühtegi sõnumit.",
+    "updateFailed": "Muutmine ebaõnnestus. Proovi uuesti."
   },
   "error": {
     "notFoundTitle": "Lehte ei leitud",

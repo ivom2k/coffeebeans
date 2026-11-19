@@ -64,6 +64,15 @@ describe('deploy configuration', () => {
     expect(app).toContain('NUXT_TRUST_PROXY: "true"');
   });
 
+  it('Should_RequireTheFeedbackHashKey_When_StartingTheApp', () => {
+    // Act
+    const app = serviceBlock(productionCompose, 'app');
+
+    // Assert: `:?` stops the deploy when the server's .env lacks it, rather than starting a site
+    // whose feedback answers 503 to everyone.
+    expect(app).toMatch(/^\s*NUXT_IP_HMAC_KEY: \$\{NUXT_IP_HMAC_KEY:\?[^}]*\}$/m);
+  });
+
   it('Should_CapEveryRequestBody_When_CaddyTakesARequest', () => {
     // Act
     const caps = [...caddyfile.matchAll(/max_size\s+(\S+)/g)].map(match => match[1]);

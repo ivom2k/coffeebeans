@@ -183,10 +183,22 @@ Three layers answer before any endpoint's own code runs. When a request fails, t
 | 411 | the app | A body sent in chunks, without `Content-Length`. Browsers always send the length. |
 | 413 | Caddy, or the app | A body over the route's cap. Caddy: 64 KB, and 16 MB for the admin's photo upload. The app: 32 KiB and 15 MiB (`server/features/security/bodyLimits.ts`). A new upload route needs both raised, or it answers 413 here first. |
 | 415 | the app | JSON sent with a `Content-Type` other than `application/json`. |
-| 429, with `Retry-After` | the app (`server/middleware/3.rateLimit.ts`) | Too many requests from one address or account: 60 searches a minute, 30 rating saves an hour, and so on (`server/features/security/rateLimits.ts`). The counts live in the app's memory, so a restart or deploy clears them. |
+| 429, with `Retry-After` | the app (`server/middleware/3.rateLimit.ts`) | Too many requests from one address or account: 60 searches a minute, 30 rating saves an hour, 5 feedback messages an hour, and so on (`server/features/security/rateLimits.ts`). The counts live in the app's memory, so a restart or deploy clears them. |
+| 429, without `Retry-After` | the app (`server/api/feedback.post.ts`) | A feedback message over a daily cap, counted from the table: 10 a day per sender, 300 a day for the whole site (`shared/utils/feedback.ts`). It doesn't say which. |
+| 503 `Feedback unavailable` | the app | `NUXT_IP_HMAC_KEY` is missing from `.env` or shorter than 32 characters (Feedback, below). |
 | 503 `Too many uploads at once` | the app | More than five photo uploads in flight; they are decoded one at a time. |
 
 The rate limiter needs the visitor's address. The app takes it from the `X-Forwarded-For` header only because `compose.yaml` sets `NUXT_TRUST_PROXY=true`, and that is safe only because the app publishes no port: Caddy is the one thing that can reach it. If the app ever gets a `ports:` entry, anyone could send that header themselves.
+
+## Feedback
+
+The footer's "Tagasiside" needs no account. The admin reads the messages at https://kohvioad.eu/admin/tagasiside. A visitor's message is stored with an HMAC of their address (an IPv6 address cut to its /64), never the address itself; a signed-in user's is stored with their account and no hash. The hash exists only to count one sender's messages per day.
+
+- **The key.** `NUXT_IP_HMAC_KEY` in `.env`, 64 hex characters from `openssl rand -hex 32`. `compose.yaml` requires it, so a server without it stops the deploy at `docker compose pull` with "required variable NUXT_IP_HMAC_KEY is missing a value", and the running site stays as it was.
+- **Add it** (bash, from `/opt/kohvioad/deploy`): `echo "NUXT_IP_HMAC_KEY=$(openssl rand -hex 32)" >> .env`. `>>` appends; a single `>` would replace the whole file. Then `grep -c '^NUXT_IP_HMAC_KEY=' .env` must print `1`; `2` means it ran twice, so remove one line with `nano .env`.
+- **Rotate it** by replacing the value and running `docker compose up -d`. Nothing breaks: old hashes simply stop matching new ones, which resets each sender's daily count. It is a secret of its own so that rotating it never signs anyone out, as changing `NUXT_SESSION_PASSWORD` does.
+- **Clear spam** in DBeaver (Routine operations). Look first: `SELECT id, created_at, ip_hmac, left(message, 80) FROM feedback WHERE created_at > now() - interval '1 day' ORDER BY created_at DESC;`. A flood from one sender shares one `ip_hmac`, so delete by that value: `DELETE FROM feedback WHERE ip_hmac = '<the hash>';`. Deleted rows no longer count towards the daily caps.
+- **Retention.** The nightly cleanup task (Phase 7.4) clears the hashes after 30 days and deletes messages after 12 months.
 
 ## The app container's limits
 
