@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { gifImage, hugeClaimedPng, sidewaysPhotoWithLocation } from '../../tests/images.ts';
+import { gifImage, hugeClaimedPng, sidewaysPhotoWithLocation, truncatedPhoto } from '../../tests/images.ts';
 import { processCoffeeImage } from './processCoffeeImage.ts';
 
 const processed = async (input: Buffer) => {
@@ -55,6 +55,7 @@ describe('processCoffeeImage', () => {
   it.each([
     ['a GIF', gifImage],
     ['text', async () => Buffer.from('not an image')],
+    ['a JPEG cut off halfway', truncatedPhoto],
   ])('Should_RefuseTheUpload_When_ItIs %s', async (_case, makeInput) => {
     // Act
     const result = await processCoffeeImage(await makeInput());

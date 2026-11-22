@@ -83,6 +83,31 @@ describe('deploy configuration', () => {
     expect(caddyfile).toMatch(/request_body @otherBodies \{\s*max_size 64KB/);
   });
 
+  // Each upload route's matcher must also be left out of the default, or Caddy would apply both
+  // caps and the smaller one would answer 413 to every upload. The patterns are simple enough to
+  // read the same in Go's regexp and JavaScript's.
+  it.each([
+    ['the admin\'s photo', '/api/admin/coffees/12/image', 'adminImage', '16MB'],
+    ['a user\'s suggestion', '/api/me/suggestions', 'suggestionUpload', '7MB'],
+  ])('Should_GiveTheUploadItsOwnCapOnly_When_ItIs %s', (_case, path, matcher, cap) => {
+    // Arrange
+    const pattern = (name: string, negated: boolean) => {
+      const found = caddyfile.match(new RegExp(`@${name} ${negated ? 'not ' : ''}path_regexp (\\S+)`));
+      return new RegExp(found?.[1] ?? '$^');
+    };
+
+    // `@otherBodies not path_regexp X`: the default cap applies wherever X doesn't match.
+    const getsDefault = (candidate: string) => !pattern('otherBodies', true).test(candidate);
+
+    // Act
+    const own = pattern(matcher, false).test(path);
+
+    // Assert
+    expect([own, getsDefault(path)]).toEqual([true, false]);
+    expect(caddyfile).toMatch(new RegExp(`request_body @${matcher} \\{\\s*max_size ${cap}`));
+    expect(getsDefault('/api/feedback')).toBe(true);
+  });
+
   it('Should_ServeOnlyPhotosFromTheMediaVolume_When_AFileIsRequested', () => {
     // Assert: anything but a .webp file answers 404, so a stray file can't become a page.
     expect(caddyfile).toMatch(/@photo \{\s*path \*\.webp\s*file\s*\}/);

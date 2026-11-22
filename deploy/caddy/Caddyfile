@@ -9,14 +9,19 @@ kohvioad.eu {
 	# stop an oversized body before it crosses to the app at all. A route that takes an upload
 	# gets its own matcher here and a row there; everything else gets the small default.
 	#
-	# The two matchers exclude each other, so exactly one cap applies to a request. The admin's
+	# The matchers exclude each other, so exactly one cap applies to a request. The admin's
 	# photo upload: the handler's own limit is 15 MB.
 	@adminImage path_regexp ^/api/admin/coffees/[^/]+/image$
 	request_body @adminImage {
 		max_size 16MB
 	}
+	# A user's suggestion with its price-tag photo: the app takes 6 MiB of photo plus the form.
+	@suggestionUpload path_regexp ^/api/me/suggestions$
+	request_body @suggestionUpload {
+		max_size 7MB
+	}
 	# Everything else sends JSON of a few kilobytes at most (the app's limit is 32 KiB).
-	@otherBodies not path_regexp ^/api/admin/coffees/[^/]+/image$
+	@otherBodies not path_regexp ^(/api/admin/coffees/[^/]+/image|/api/me/suggestions)$
 	request_body @otherBodies {
 		max_size 64KB
 	}

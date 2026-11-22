@@ -13,6 +13,23 @@ export const sidewaysPhotoWithLocation = () => sharp({ create: { width: 40, heig
 
 export const gifImage = () => sharp({ create: { width: 4, height: 4, channels: 3, background: '#000000' } }).gif().toBuffer();
 
+export const tiffImage = () => sharp({ create: { width: 4, height: 4, channels: 3, background: '#000000' } }).tiff().toBuffer();
+
+export const svgImage = async () =>
+  Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><script>alert(1)</script></svg>');
+
+// A real photo of `width` × `height`, one colour, so a large one is still a small file.
+export const plainPhoto = (width: number, height: number) =>
+  sharp({ create: { width, height, channels: 3, background: '#3557B7' } }).jpeg().toBuffer();
+
+// A JPEG cut off halfway, as a phone can save one: the header is whole, so the format and size
+// checks pass, and libvips fails only while decoding. Noise, so the missing half holds image data.
+export const truncatedPhoto = async () => {
+  const noise = { type: 'gaussian', mean: 128, sigma: 30 } as const;
+  const photo = await sharp({ create: { width: 800, height: 600, channels: 3, background: '#000000', noise } }).jpeg().toBuffer();
+  return photo.subarray(0, Math.floor(photo.length / 2));
+};
+
 const pngChunk = (type: string, data: Buffer) => {
   const typeAndData = Buffer.concat([Buffer.from(type, 'ascii'), data]);
   const length = Buffer.alloc(4);

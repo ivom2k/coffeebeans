@@ -21,6 +21,11 @@ export const buckets = {
   // The one write a visitor can make without signing in. The daily caps per sender and for the
   // whole site are counted from the table (shared/utils/feedback.ts).
   feedback: { name: 'feedback', limit: 5, windowMs: hour },
+  // Each one may carry a photo to decode. The caps on what an account may have waiting are
+  // counted from the table (shared/utils/suggestion.ts).
+  suggestionCreate: { name: 'suggestionCreate', limit: 10, windowMs: hour },
+  // Sent once per visit to "Minu ettepanekud" that shows a new outcome.
+  suggestionSeen: { name: 'suggestionSeen', limit: 60, windowMs: hour },
   unlisted: { name: 'unlisted', limit: 30, windowMs: hour },
 } as const satisfies Record<string, Bucket>;
 
@@ -38,6 +43,8 @@ const rules: readonly { methods: readonly string[]; pattern: RegExp; rule: Limit
   { methods: ['PATCH', 'DELETE'], pattern: /^\/api\/me\/machines\/[^/]+$/, rule: { bucket: buckets.machineWrite, by: 'user' } },
   // By the account when signed in, otherwise by the address.
   { methods: ['POST'], pattern: /^\/api\/feedback$/, rule: { bucket: buckets.feedback, by: 'user' } },
+  { methods: ['POST'], pattern: /^\/api\/me\/suggestions$/, rule: { bucket: buckets.suggestionCreate, by: 'user' } },
+  { methods: ['POST'], pattern: /^\/api\/me\/suggestions\/seen$/, rule: { bucket: buckets.suggestionSeen, by: 'user' } },
   // The role check is the limit: only the admin gets past server/middleware/2.admin.ts.
   { methods: ['POST', 'PUT', 'PATCH', 'DELETE'], pattern: /^\/api\/admin\//, rule: 'none' },
   // Sign-out only ends the caller's own session.

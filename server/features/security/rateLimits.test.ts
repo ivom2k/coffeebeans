@@ -12,6 +12,8 @@ describe('limitRuleFor', () => {
     ['renaming a machine', 'PATCH', '/api/me/machines/7', buckets.machineWrite, 'user'],
     ['removing a machine', 'DELETE', '/api/me/machines/7', buckets.machineWrite, 'user'],
     ['sending feedback', 'POST', '/api/feedback', buckets.feedback, 'user'],
+    ['sending a suggestion', 'POST', '/api/me/suggestions', buckets.suggestionCreate, 'user'],
+    ['marking outcomes seen', 'POST', '/api/me/suggestions/seen', buckets.suggestionSeen, 'user'],
   ] as const)('Should_Count_When_ItIs %s', (_case, method, path, bucket, by) => {
     // Act
     const rule = limitRuleFor(method, path);
@@ -36,6 +38,7 @@ describe('limitRuleFor', () => {
     ['a cached page', 'GET', '/kohv/vallozzi-crema'],
     ['a cached endpoint', 'GET', '/api/ranking'],
     ['the user\'s own data', 'GET', '/api/me/machines'],
+    ['the user\'s own suggestions', 'GET', '/api/me/suggestions'],
     ['an admin read', 'GET', '/api/admin/coffees'],
     ['the session check', 'GET', '/api/_auth/session'],
   ])('Should_HaveNoRule_When_ItIsARead (%s)', (_case, method, path) => {

@@ -70,11 +70,27 @@ export const openImage = async (input: Buffer, maxPixels: number): Promise<OpenI
   return { kind: 'opened', image: sharp(input, { limitInputPixels: maxPixels }).autoOrient() };
 };
 
+export type EncodeResult = { kind: 'encoded'; data: Buffer } | { kind: 'unsupported' };
+
+// The encode is where the image is first decoded past its header. A file cut off halfway or
+// corrupt inside fails only here ("VipsJpeg: premature end of JPEG image"), and that is the
+// uploader's file, not a fault of the server: the same answer as a format never accepted. The
+// message is logged in case it ever is a fault.
+export const encodeImage = async (pipeline: Sharp): Promise<EncodeResult> => {
+  try {
+    return { kind: 'encoded', data: await pipeline.toBuffer() };
+  } catch (error) {
+    console.warn(`Image not decoded: ${error instanceof Error ? error.message : 'unknown error'}`);
+    return { kind: 'unsupported' };
+  }
+};
+
 export type SlotResult<T> = { kind: 'ran'; value: T } | { kind: 'busy' };
 
 // One piece of work at a time, with a short queue behind it. Decoding a photo takes tens of
-// megabytes for a moment, so ten at once could push Postgres into swap. An upload takes its
-// slot before its body is read, which bounds the bodies held in memory the same way.
+// megabytes for a moment, so ten at once could push Postgres into swap. An upload takes its slot
+// only once its body has arrived, so a slow connection never holds anyone else's decode; the
+// bodies held in memory are bounded by each route's upload gate (security/uploadGate.ts).
 export const createSlotQueue = ({ maxWaiting = 4 }: { maxWaiting?: number } = {}) => {
   let pending = 0;
   let last: Promise<unknown> = Promise.resolve();

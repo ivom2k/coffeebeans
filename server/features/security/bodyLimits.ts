@@ -6,7 +6,11 @@
 // A route that takes an upload adds a row here and a matcher in the Caddyfile. Everything else
 // gets the default, so a new endpoint is capped without anyone remembering to.
 
-export type BodyKind = 'json' | 'image';
+import { maxSuggestionPhotoBytes } from '../../../shared/utils/suggestion.ts';
+
+// `image`: the raw bytes of one file. `multipart`: a form with fields and a file, as a browser
+// sends FormData.
+export type BodyKind = 'json' | 'image' | 'multipart';
 export type BodyLimit = { kind: BodyKind; maxBytes: number };
 
 const kib = 1024;
@@ -19,8 +23,12 @@ export const defaultBodyLimit: BodyLimit = { kind: 'json', maxBytes: 32 * kib };
 // A phone photo is a few megabytes.
 export const adminImageLimit: BodyLimit = { kind: 'image', maxBytes: 15 * mib };
 
+// A user's suggestion: the photo, plus room for the form's envelope and its small JSON part.
+export const suggestionUploadLimit: BodyLimit = { kind: 'multipart', maxBytes: maxSuggestionPhotoBytes + 64 * kib };
+
 const uploadRoutes: readonly { method: string; pattern: RegExp; limit: BodyLimit }[] = [
   { method: 'PUT', pattern: /^\/api\/admin\/coffees\/[^/]+\/image$/, limit: adminImageLimit },
+  { method: 'POST', pattern: /^\/api\/me\/suggestions$/, limit: suggestionUploadLimit },
 ];
 
 // Lower case and without a trailing slash, so a variant spelling of an upload route can only
@@ -57,9 +65,13 @@ export const checkBody = ({ method, path, contentLength, transferEncoding, conte
     return { ok: false, status: 413, message: 'Request body too large' };
   }
   // h3 parses JSON out of any content type, text/plain included, which a plain HTML form on
-  // another site can send. Upload routes check their bytes themselves.
+  // another site can send. An image route checks its bytes itself.
   if (length > 0 && limit.kind === 'json' && !/^application\/json\s*(;|$)/i.test(contentType ?? '')) {
     return { ok: false, status: 415, message: 'JSON expected' };
+  }
+  // A form route reads nothing but a form, so a stray JSON or text body never reaches its parser.
+  if (length > 0 && limit.kind === 'multipart' && !/^multipart\/form-data\s*;/i.test(contentType ?? '')) {
+    return { ok: false, status: 415, message: 'Form expected' };
   }
   return { ok: true };
 };

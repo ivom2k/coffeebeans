@@ -1,7 +1,7 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { gifImage, hugeClaimedPng, sidewaysPhotoWithLocation } from '../../tests/images.ts';
-import { createSlotQueue, openImage, sniffImageFormat } from './imageDecoder.ts';
+import { gifImage, hugeClaimedPng, sidewaysPhotoWithLocation, truncatedPhoto } from '../../tests/images.ts';
+import { createSlotQueue, encodeImage, openImage, sniffImageFormat } from './imageDecoder.ts';
 
 const maxPixels = 1_000_000;
 
@@ -103,6 +103,39 @@ describe('openImage', () => {
 
     // Assert
     expect(results.map(result => result.kind)).toEqual(['opened', 'tooLarge']);
+  });
+});
+
+describe('encodeImage', () => {
+  it('Should_ReturnTheEncodedImage_When_TheDataIsWhole', async () => {
+    // Arrange
+    const opened = await openImage(await solid().jpeg().toBuffer(), maxPixels);
+    if (opened.kind !== 'opened') {
+      throw new Error(`Expected an opened image, got ${opened.kind}.`);
+    }
+
+    // Act
+    const result = await encodeImage(opened.image.webp());
+
+    // Assert
+    expect(result.kind).toBe('encoded');
+    if (result.kind === 'encoded') {
+      expect((await sharp(result.data).metadata()).format).toBe('webp');
+    }
+  });
+
+  it('Should_RefuseTheUpload_When_TheDataStopsHalfwayBehindAWholeHeader', async () => {
+    // Arrange: the header passes, which is all openImage reads.
+    const opened = await openImage(await truncatedPhoto(), maxPixels);
+    if (opened.kind !== 'opened') {
+      throw new Error(`Expected an opened image, got ${opened.kind}.`);
+    }
+
+    // Act
+    const result = await encodeImage(opened.image.webp());
+
+    // Assert: refused, where the encode itself would throw.
+    expect(result).toEqual({ kind: 'unsupported' });
   });
 });
 

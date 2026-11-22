@@ -100,5 +100,20 @@ const filters = computed<RankingFilters>({
         </li>
       </ul>
     </section>
+
+    <!-- The same for every visitor, so it may sit on the cached page. -->
+    <NuxtLinkLocale
+      to="/soovita"
+      class="mt-2 flex max-w-2xl items-center justify-between gap-3 rounded-lg bg-primary-50 p-4 text-default"
+    >
+      <span class="flex flex-col gap-0.5">
+        <span class="font-semibold">{{ $t('suggestion.homeCardTitle') }}</span>
+        <span class="text-sm text-primary-800">{{ $t('suggestion.homeCardText') }}</span>
+      </span>
+      <UIcon
+        name="i-lucide-chevron-right"
+        class="size-5.5 shrink-0 text-primary-800"
+      />
+    </NuxtLinkLocale>
   </div>
 </template>

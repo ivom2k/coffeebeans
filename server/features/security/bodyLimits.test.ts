@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { adminImageLimit, bodyLimitFor, checkBody, defaultBodyLimit, type BodyHeaders } from './bodyLimits.ts';
+import {
+  adminImageLimit, bodyLimitFor, checkBody, defaultBodyLimit, suggestionUploadLimit, type BodyHeaders,
+} from './bodyLimits.ts';
 
 const jsonPost = (overrides: Partial<BodyHeaders> = {}): BodyHeaders => ({
   method: 'POST',
@@ -31,6 +33,14 @@ describe('bodyLimitFor', () => {
 
     // Assert
     expect(limit).toBe(defaultBodyLimit);
+  });
+
+  it('Should_GiveTheFormLimit_When_AUserSendsASuggestion', () => {
+    // Act
+    const limits = [bodyLimitFor('POST', '/api/me/suggestions'), bodyLimitFor('POST', '/api/me/suggestions/seen')];
+
+    // Assert: the photo and its envelope, and only on the route that takes one.
+    expect(limits).toEqual([suggestionUploadLimit, defaultBodyLimit]);
   });
 
   it('Should_MatchTheUploadRoute_When_ThePathIsSpeltInUpperCaseOrEndsInASlash', () => {
@@ -134,5 +144,48 @@ describe('checkBody', () => {
 
     // Assert
     expect(result).toEqual({ ok: true });
+  });
+
+  const formPost = (overrides: Partial<BodyHeaders> = {}): BodyHeaders => ({
+    method: 'POST',
+    path: '/api/me/suggestions',
+    contentLength: String(suggestionUploadLimit.maxBytes),
+    transferEncoding: undefined,
+    contentType: 'multipart/form-data; boundary=----x',
+    ...overrides,
+  });
+
+  it.each(['multipart/form-data; boundary=----x', 'Multipart/Form-Data;boundary=y'])(
+    'Should_Pass_When_AFormRouteGetsAForm (%s)',
+    (contentType) => {
+      // Act
+      const result = checkBody(formPost({ contentType }));
+
+      // Assert
+      expect(result).toEqual({ ok: true });
+    },
+  );
+
+  it.each([
+    ['JSON', 'application/json'],
+    ['text/plain', 'text/plain'],
+    ['a URL-encoded form', 'application/x-www-form-urlencoded'],
+    ['a form without its boundary', 'multipart/form-data'],
+    ['an image', 'image/jpeg'],
+    ['nothing', undefined],
+  ])('Should_Answer415_When_AFormRouteGets %s', (_case, contentType) => {
+    // Act
+    const result = checkBody(formPost({ contentType }));
+
+    // Assert
+    expect(result).toMatchObject({ ok: false, status: 415 });
+  });
+
+  it('Should_Answer413_When_AFormIsOverItsLimit', () => {
+    // Act
+    const result = checkBody(formPost({ contentLength: String(suggestionUploadLimit.maxBytes + 1) }));
+
+    // Assert
+    expect(result).toMatchObject({ ok: false, status: 413 });
   });
 });

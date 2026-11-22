@@ -1,26 +1,28 @@
 import { randomUUID } from 'node:crypto';
 import { globSync, mkdtempSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
+import { readdir, readFile, rm } from 'node:fs/promises';
 import { IncomingMessage, ServerResponse } from 'node:http';
 import { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fetch, setup } from '@nuxt/test-utils/e2e';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { createEvent, sealSession } from 'h3';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  appUser, brand, coffeeBean, feedback, machineManufacturer, machineModel, rating, ratingMachineIssue, userMachine,
+  appUser, brand, coffeeBean, feedback, machineManufacturer, machineModel, rating, ratingMachineIssue, suggestion, userMachine,
 } from '../db/schema/index.ts';
 import type { BrandPageResponse } from '../../shared/types/brand.ts';
+import type { MySuggestion } from '../../shared/types/suggestion.ts';
 import { maxFeedbackLength } from '../../shared/utils/feedback.ts';
 import { maxMachinesPerAccount } from '../../shared/utils/machine.ts';
+import { maxSuggestionPhotoBytes, suggestionLimits } from '../../shared/utils/suggestion.ts';
 import { closeTestDb, committedDb, createCoffee, createMachineModel, createUser, required } from '../db/tests/helpers.ts';
-import { bodyLimitFor } from '../features/security/bodyLimits.ts';
+import { bodyLimitFor, type BodyLimit } from '../features/security/bodyLimits.ts';
 import { buckets, limitRuleFor } from '../features/security/rateLimits.ts';
-import { gifImage, sidewaysPhotoWithLocation } from './images.ts';
+import { gifImage, hugeClaimedPng, plainPhoto, sidewaysPhotoWithLocation, svgImage, tiffImage, truncatedPhoto } from './images.ts';
 
 // The app built for production and run against the test database, requested over HTTP: what
 // only a running server shows. One build serves both blocks below, since it takes a minute.
@@ -51,8 +53,10 @@ const sessionCookie = 'nuxt-session';
 // The same for the key of the address hash stored with anonymous feedback.
 const ipHmacKey = `test-only-ip-hmac-key-${randomUUID()}`;
 
-// The photos the admin block uploads land here instead of the repository's media/.
+// The photos the admin block uploads land here instead of the repository's media/, and the
+// suggestion photos in a folder of their own, as in production.
 const mediaDir = mkdtempSync(join(tmpdir(), 'kohvioad-routes-media-'));
+const privateMediaDir = mkdtempSync(join(tmpdir(), 'kohvioad-routes-private-'));
 
 const noteCanary = `private-note-canary-${randomUUID()}`;
 const nicknameCanary = `nick-${randomUUID().slice(0, 8)}`;
@@ -66,6 +70,9 @@ const draftCanary = `draft-canary-${randomUUID()}`;
 const draftSlug = 'kanaari-mustand';
 // A feedback message, which only the admin inbox may show.
 const feedbackCanary = `feedback-canary-${randomUUID()}`;
+// A suggestion's text and the admin's note on another, which only their author may see.
+const suggestionCanary = `suggestion-canary-${randomUUID()}`;
+const reviewNoteCanary = `review-note-canary-${randomUUID()}`;
 
 // Every page and public GET endpoint, with the file that serves it; a test below fails when
 // one is missing. The cache key is the whole URL, so the endpoints appear as the pages and
@@ -85,7 +92,10 @@ const publicRoutes = [
   { source: 'app/pages/kohv/[slug]/index.vue', path: `/kohv/${coffeeSlug}/_payload.json` },
   { source: 'app/pages/kohv/[slug]/hinda.vue', path: `/kohv/${coffeeSlug}/hinda` },
   { source: 'app/pages/brand/[slug].vue', path: `/brand/${brandSlug}` },
-  { source: 'app/pages/konto.vue', path: '/konto' },
+  // Not cached, and per-user only in the browser: the server renders the same heading for all.
+  { source: 'app/pages/konto/index.vue', path: '/konto' },
+  { source: 'app/pages/konto/ettepanekud.vue', path: '/konto/ettepanekud' },
+  { source: 'app/pages/soovita.vue', path: '/soovita' },
   // Rendered in the browser only: the server sends the same empty shell to everyone.
   { source: 'app/pages/admin/kohvid/index.vue', path: '/admin/kohvid' },
   { source: 'app/pages/admin/kohvid/uus.vue', path: '/admin/kohvid/uus' },
@@ -119,6 +129,10 @@ const meRoutes = [
   { source: 'server/api/me/machines/[id].delete.ts', method: 'DELETE', path: '/api/me/machines/1' },
   { source: 'server/api/me/ratings/[slug].get.ts', method: 'GET', path: `/api/me/ratings/${coffeeSlug}` },
   { source: 'server/api/me/ratings/[slug].put.ts', method: 'PUT', path: `/api/me/ratings/${coffeeSlug}` },
+  { source: 'server/api/me/suggestions/index.get.ts', method: 'GET', path: '/api/me/suggestions' },
+  { source: 'server/api/me/suggestions/index.post.ts', method: 'POST', path: '/api/me/suggestions' },
+  { source: 'server/api/me/suggestions/unread.get.ts', method: 'GET', path: '/api/me/suggestions/unread' },
+  { source: 'server/api/me/suggestions/seen.post.ts', method: 'POST', path: '/api/me/suggestions/seen' },
 ];
 
 // Writes outside admin/ and me/. Sign-out is the library's route, which the session middleware
@@ -202,6 +216,48 @@ const send = (method: string, path: string, cookie: string | undefined, body?: u
 const uploadImage = (path: string, cookie: string, image: Buffer, contentType: string) =>
   fetch(path, { method: 'PUT', headers: { cookie, 'content-type': contentType }, body: new Uint8Array(image) });
 
+// The content type each kind of route takes, for requests that should get past the type check.
+const contentTypeFor = (limit: BodyLimit) =>
+  ({ json: 'application/json', image: 'image/jpeg', multipart: 'multipart/form-data; boundary=x' })[limit.kind];
+
+// The suggestion form as the browser sends it: `details` as JSON and the photo as a file. Fetch
+// sets the multipart type and its boundary itself.
+type FormPart = [name: string, value: string | Blob, fileName?: string];
+
+const suggestionForm = (details: unknown, photo?: Buffer, extra: FormPart[] = []) => {
+  const form = new FormData();
+  form.append('details', JSON.stringify(details));
+  if (photo) {
+    form.append('photo', new Blob([new Uint8Array(photo)], { type: 'image/jpeg' }), 'hinnasilt.jpg');
+  }
+  for (const [name, value, fileName] of extra) {
+    if (typeof value === 'string') {
+      form.append(name, value);
+    } else {
+      form.append(name, value, fileName);
+    }
+  }
+  return form;
+};
+
+const postSuggestion = (cookie: string | undefined, form: FormData) =>
+  fetch('/api/me/suggestions', { method: 'POST', headers: cookie ? { cookie } : {}, body: form });
+
+const coffeeDetails = (name: string | null, url: string | null = null) => ({ suggestionType: 'COFFEE_BEAN', name, url });
+
+// The files the server wrote for suggestions, in either media folder; none before the first one.
+// Any other error fails the test, so a folder it can't read never passes for an empty one.
+const filesIn = async (dir: string) => {
+  try {
+    return await readdir(join(dir, 'suggestion'));
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+};
+
 const sources = (pattern: string, exclude?: RegExp) => globSync(pattern, { cwd: rootDir })
   .map(file => file.replaceAll('\\', '/'))
   .filter(file => !exclude?.test(file))
@@ -211,13 +267,23 @@ describe('routes', async () => {
   let fixture: {
     brandId: number; coffeeId: number; userId: number; adminId: number; fullUserId: number; modelId: number; manufacturerId: number;
     authorCookie: string; adminCookie: string; fullUserCookie: string;
+    otherUserCookie: string; queueUserCookie: string; rejectedSuggestionId: number;
+  };
+
+  // Accounts a test makes for itself, so each sends from an account of its own: every suggestion,
+  // refused or not, counts against its account's ten an hour. Removed in afterAll.
+  const extraUserIds: number[] = [];
+  const newSuggester = async () => {
+    const user = await createUser(committedDb);
+    extraUserIds.push(user.id);
+    return { id: user.id, cookie: await signedInCookie(user.id) };
   };
 
   // Committed rather than rolled back: the server reads them over its own connection.
   beforeAll(async () => {
     const [brandRow] = await committedDb.insert(brand).values({ name: 'Kanaari', slug: brandSlug }).returning();
     const coffee = await createCoffee(committedDb, { slug: coffeeSlug, name: 'Segu', brandId: required(brandRow).id });
-    await createCoffee(committedDb, { slug: draftSlug, name: draftCanary, brandId: required(brandRow).id, status: 'DRAFT' });
+    const draft = await createCoffee(committedDb, { slug: draftSlug, name: draftCanary, brandId: required(brandRow).id, status: 'DRAFT' });
     const model = await createMachineModel(committedDb);
     const author = await createUser(committedDb);
     const admin = await createUser(committedDb);
@@ -240,6 +306,28 @@ describe('routes', async () => {
     const fullUser = await createUser(committedDb);
     await committedDb.insert(userMachine)
       .values(Array.from({ length: maxMachinesPerAccount }, () => ({ userId: fullUser.id, machineModelId: model.id })));
+    // The author's suggestions: one waiting, one rejected with a note, and one approved into the
+    // draft, which its author must see as still waiting. Reviewed a minute ago, as an earlier
+    // request would have: marking as seen stamps a later time (suggestion_seen_chk).
+    const reviewedAt = new Date(Date.now() - 60_000);
+    const [, rejectedRow] = await committedDb.insert(suggestion).values([
+      { suggestionType: 'COFFEE_BEAN', userId: author.id, details: { name: suggestionCanary, url: null } },
+      {
+        suggestionType: 'COFFEE_BEAN', userId: author.id, details: { name: 'Kapslid', url: null },
+        status: 'REJECTED', reviewReason: 'NOT_WHOLE_BEANS', reviewNote: reviewNoteCanary, reviewedAt,
+      },
+      {
+        suggestionType: 'COFFEE_BEAN', userId: author.id, details: { name: 'Mustandiks', url: null },
+        status: 'APPROVED', resultingCoffeeBeanId: draft.id, reviewedAt,
+      },
+    ]).returning({ id: suggestion.id });
+    // A second user with nothing of their own, and one whose account is full of waiting ones.
+    const otherUser = await createUser(committedDb);
+    const queueUser = await createUser(committedDb);
+    extraUserIds.push(otherUser.id, queueUser.id);
+    await committedDb.insert(suggestion).values(Array.from({ length: suggestionLimits.pendingPerAccount }, () => ({
+      suggestionType: 'COFFEE_BEAN' as const, userId: queueUser.id, details: { name: 'Ootel', url: null },
+    })));
     fixture = {
       brandId: required(brandRow).id,
       coffeeId: coffee.id,
@@ -251,6 +339,9 @@ describe('routes', async () => {
       authorCookie: await signedInCookie(author.id),
       adminCookie: await signedInCookie(admin.id),
       fullUserCookie: await signedInCookie(fullUser.id),
+      otherUserCookie: await signedInCookie(otherUser.id),
+      queueUserCookie: await signedInCookie(queueUser.id),
+      rejectedSuggestionId: required(rejectedRow).id,
     };
   });
 
@@ -258,8 +349,11 @@ describe('routes', async () => {
   // coffee's packages go with their parents. The admin block's coffee and brand were committed
   // by the server.
   afterAll(async () => {
-    // Every feedback row: the fixture's and whatever the server stored for the tests below.
+    // Every feedback row and suggestion: the fixture's and whatever the server stored for the
+    // tests below. Suggestions first: one points at the draft, without a cascade.
     await committedDb.delete(feedback);
+    await committedDb.delete(suggestion);
+    await committedDb.delete(appUser).where(inArray(appUser.id, extraUserIds));
     await committedDb.delete(rating).where(eq(rating.coffeeBeanId, fixture.coffeeId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.userId));
     await committedDb.delete(appUser).where(eq(appUser.id, fixture.adminId));
@@ -273,6 +367,7 @@ describe('routes', async () => {
     await committedDb.delete(machineManufacturer).where(eq(machineManufacturer.id, fixture.manufacturerId));
     await closeTestDb();
     await rm(mediaDir, { recursive: true, force: true });
+    await rm(privateMediaDir, { recursive: true, force: true });
   });
 
   // A production build against the test database. vitest.config.ts loads .env, so without
@@ -283,11 +378,19 @@ describe('routes', async () => {
     rootDir,
     server: true,
     build: true,
+    // The build and the server's start, which took four minutes on a throttled laptop against the
+    // library's 240-second default for Windows. A build that hangs still fails, only later.
+    setupTimeout: 10 * 60_000,
+    // The test build lives in a temporary folder but would write the editor's server tsconfig
+    // (.nuxt/tsconfig.server.json) pointing into it; once the folder is removed, the editor no
+    // longer knows Nitro's auto-imports in any server file. The build itself never reads it.
+    nuxtConfig: { nitro: { typescript: { generateTsConfig: false } } },
     env: {
       NUXT_DATABASE_URL: process.env.TEST_DATABASE_URL,
       NUXT_SESSION_PASSWORD: sessionPassword,
       NUXT_IP_HMAC_KEY: ipHmacKey,
       NUXT_MEDIA_DIR: mediaDir,
+      NUXT_PRIVATE_MEDIA_DIR: privateMediaDir,
       NUXT_TRUST_PROXY: 'true',
     },
   });
@@ -329,10 +432,13 @@ describe('routes', async () => {
       // Act: /api/me/ is never cached, so the order doesn't matter here.
       const ownRating = await request(`/api/me/ratings/${coffeeSlug}`, fixture.authorCookie);
       const ownMachines = await request('/api/me/machines', fixture.authorCookie);
+      const ownSuggestions = await request('/api/me/suggestions', fixture.authorCookie);
 
       // Assert: the cookie works, so the signed-in pass was really signed in.
       expect(ownRating.body).toContain(noteCanary);
       expect(ownMachines.body).toContain(nicknameCanary);
+      expect(ownSuggestions.body).toContain(suggestionCanary);
+      expect(ownSuggestions.body).toContain(reviewNoteCanary);
     });
 
     // A browser that revalidated a page or payload must not then reuse it without asking: after a
@@ -366,6 +472,8 @@ describe('routes', async () => {
         // A draft has no page yet, so its name appears nowhere a visitor can look.
         expect(response?.body).not.toContain(draftCanary);
         expect(response?.body).not.toContain(feedbackCanary);
+        expect(response?.body).not.toContain(suggestionCanary);
+        expect(response?.body).not.toContain(reviewNoteCanary);
       }
     });
 
@@ -522,11 +630,14 @@ describe('routes', async () => {
     // Before validation too: a body that would fail it still gets 401, not 400. A handler that
     // forgot requireUser() would answer here with someone's rows, or a 400.
     it.each(meRoutes)('Should_RefuseAVisitor_When_Requesting $method $path', async ({ method, path }) => {
-      // Arrange
+      // Arrange: a body of the kind the route takes, so the guard's type check lets it through.
       const body = method === 'GET' || method === 'DELETE' ? undefined : {};
+      const isForm = bodyLimitFor(method, path).kind === 'multipart';
 
-      // Act
-      const anonymous = await send(method, path, undefined, body);
+      // Act: a form route gets a form, at its own path and method.
+      const anonymous = isForm
+        ? await fetch(path, { method, body: suggestionForm(coffeeDetails('Crema')) })
+        : await send(method, path, undefined, body);
 
       // Assert
       expect(anonymous.status).toBe(401);
@@ -652,6 +763,187 @@ describe('routes', async () => {
     });
   });
 
+  // The first upload, link and free text from users who aren't the admin (decisions log §6).
+  describe('suggestions', () => {
+    const storedPath = async (id: number) => (await committedDb
+      .select({ imagePath: suggestion.imagePath }).from(suggestion).where(eq(suggestion.id, id)))[0]?.imagePath ?? null;
+    const seenAt = async (id: number) => (await committedDb
+      .select({ seenAt: suggestion.resultSeenAt }).from(suggestion).where(eq(suggestion.id, id)))[0]?.seenAt ?? null;
+    const listOf = async (cookie: string) => (await send('GET', '/api/me/suggestions', cookie)).json() as Promise<MySuggestion[]>;
+    const unreadOf = async (cookie: string) => (await send('GET', '/api/me/suggestions/unread', cookie)).json() as Promise<{ count: number }>;
+
+    it('Should_StoreAnUprightWebpInThePrivateFolderOnly_When_ASuggestionCarriesAPhoto', async () => {
+      // Arrange
+      const { cookie } = await newSuggester();
+      const publicFilesBefore = await filesIn(mediaDir);
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails(null), await sidewaysPhotoWithLocation()));
+
+      // Assert: no thumbnail and nothing in the folder Caddy serves.
+      expect(response.status).toBe(201);
+      const { id } = await response.json() as { id: number };
+      const path = await storedPath(id);
+      expect(path).toMatch(/^suggestion\/[0-9a-f]{32}\.webp$/);
+      const stored = await sharp(await readFile(join(privateMediaDir, path ?? ''))).metadata();
+      expect([stored.format, stored.width, stored.height]).toEqual(['webp', 20, 40]);
+      expect(stored.exif).toBeUndefined();
+      expect(await filesIn(mediaDir)).toEqual(publicFilesBefore);
+    });
+
+    it('Should_FitTheStoredPhotoInside1600Pixels_When_ALargePhotoArrives', async () => {
+      // Arrange
+      const { cookie } = await newSuggester();
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('Suur'), await plainPhoto(3200, 2000)));
+
+      // Assert
+      const { id } = await response.json() as { id: number };
+      const stored = await sharp(await readFile(join(privateMediaDir, await storedPath(id) ?? ''))).metadata();
+      expect([response.status, stored.width, stored.height]).toEqual([201, 1600, 1000]);
+    });
+
+    it.each([
+      ['a GIF', gifImage],
+      ['an SVG', svgImage],
+      ['a TIFF', tiffImage],
+      ['a web page sent as a JPEG', async () => Buffer.from('<!doctype html><script>alert(1)</script>')],
+      ['a decompression bomb', async () => hugeClaimedPng()],
+      ['17 megapixels', () => plainPhoto(4250, 4000)],
+      ['a JPEG cut off halfway', truncatedPhoto],
+    ])('Should_Answer422AndStoreNothing_When_ThePhotoIs %s', async (_case, makePhoto) => {
+      // Arrange: the part claims image/jpeg whatever it holds; the bytes decide.
+      const { id: userId, cookie } = await newSuggester();
+      const filesBefore = await filesIn(privateMediaDir);
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('Crema'), await makePhoto()));
+
+      // Assert
+      expect(response.status).toBe(422);
+      expect(await committedDb.$count(suggestion, eq(suggestion.userId, userId))).toBe(0);
+      expect(await filesIn(privateMediaDir)).toEqual(filesBefore);
+    });
+
+    it('Should_Answer413_When_ThePhotoIsOverSixMegabytesInsideTheFormsLimit', async () => {
+      // Arrange: within the route's cap, so it is the handler's own check that answers.
+      const { cookie } = await newSuggester();
+      const photo = Buffer.concat([Buffer.from([0xFF, 0xD8, 0xFF]), Buffer.alloc(maxSuggestionPhotoBytes - 2)]);
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('Crema'), photo));
+
+      // Assert
+      expect(response.status).toBe(413);
+    });
+
+    it.each([
+      ['an extra part', [['website', 'https://spam.example']]],
+      ['a second photo', [['photo', new Blob([new Uint8Array(10)]), 'teine.jpg']]],
+      ['the details twice', [['details', JSON.stringify(coffeeDetails('Teine'))]]],
+    ] as [string, FormPart[]][])('Should_Answer400_When_TheFormHolds %s', async (_case, extra) => {
+      // Arrange
+      const { cookie } = await newSuggester();
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('Crema'), await plainPhoto(8, 8), extra));
+
+      // Assert
+      expect(response.status).toBe(400);
+    });
+
+    it.each(['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', '//evil.example', 'http://user:pass@pood.example'])(
+      'Should_Answer400_When_TheLinkIs %s',
+      async (url) => {
+        // Arrange
+        const { id: userId, cookie } = await newSuggester();
+
+        // Act
+        const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('Crema', url)));
+
+        // Assert
+        expect(response.status).toBe(400);
+        expect(await committedDb.$count(suggestion, eq(suggestion.userId, userId))).toBe(0);
+      },
+    );
+
+    it('Should_Answer400_When_ACoffeeHasNoNameLinkOrPhoto', async () => {
+      // Arrange
+      const { cookie } = await newSuggester();
+
+      // Act
+      const response = await postSuggestion(cookie, suggestionForm(coffeeDetails('  ', '')));
+
+      // Assert
+      expect(response.status).toBe(400);
+    });
+
+    it('Should_Answer409_When_TheAccountAlreadyHasTenWaiting', async () => {
+      // Act: refused before the photo is read.
+      const response = await postSuggestion(fixture.queueUserCookie, suggestionForm(coffeeDetails('Üheteistkümnes'), await plainPhoto(8, 8)));
+
+      // Assert
+      expect(response.status).toBe(409);
+    });
+
+    it('Should_ShowTheDraftsSuggestionAsWaiting_When_TheAuthorReadsTheList', async () => {
+      // Act
+      const list = await listOf(fixture.authorCookie);
+      const unread = await unreadOf(fixture.authorCookie);
+
+      // Assert: the approved one shows no name and no slug, and only the rejection is new.
+      expect(list.map(item => item.outcome.kind).toSorted()).toEqual(['rejected', 'waiting', 'waiting']);
+      expect(JSON.stringify(list)).not.toMatch(new RegExp(`${draftCanary}|${draftSlug}`));
+      expect(unread).toEqual({ count: 1 });
+    });
+
+    it('Should_ShowNoneOfAnothersAndMarkOnlyTheirOwn_When_AnotherUserReadsAndMarks', async () => {
+      // Act: the other user sends the author's id.
+      const theirList = await send('GET', '/api/me/suggestions', fixture.otherUserCookie);
+      const theirSeen = await send('POST', '/api/me/suggestions/seen', fixture.otherUserCookie, { ids: [fixture.rejectedSuggestionId] });
+
+      // Assert
+      expect(theirList.status).toBe(200);
+      const body = await theirList.text();
+      expect(body).toBe('[]');
+      expect(await theirSeen.json()).toEqual({ marked: 0 });
+      expect(await seenAt(fixture.rejectedSuggestionId)).toBeNull();
+    });
+
+    // An author of its own, so the fixture's rejection stays unread for the tests above whatever
+    // order they run in.
+    it('Should_MarkTheOutcomeSeenOnlyByThePost_When_TheAuthorOpensTheList', async () => {
+      // Arrange: reviewed a minute ago, as in the fixture (suggestion_seen_chk).
+      const { id: userId, cookie } = await newSuggester();
+      const [row] = await committedDb.insert(suggestion).values({
+        suggestionType: 'COFFEE_BEAN', userId, details: { name: 'Kapslid', url: null },
+        status: 'REJECTED', reviewReason: 'NOT_WHOLE_BEANS', reviewedAt: new Date(Date.now() - 60_000),
+      }).returning({ id: suggestion.id });
+      const rejectedId = required(row).id;
+
+      // Act: reading the list twice changes nothing; the POST names what the page showed.
+      const list = await listOf(cookie);
+      await listOf(cookie);
+      const beforePost = await seenAt(rejectedId);
+      const marked = await send('POST', '/api/me/suggestions/seen', cookie, { ids: list.filter(item => item.unread).map(item => item.id) });
+
+      // Assert
+      expect(beforePost).toBeNull();
+      expect(await marked.json()).toEqual({ marked: 1 });
+      expect(await seenAt(rejectedId)).not.toBeNull();
+      expect(await unreadOf(cookie)).toEqual({ count: 0 });
+    });
+
+    it('Should_Answer400_When_TheSeenPostNamesNoIds', async () => {
+      // Act: the old body-less request, which marked everything.
+      const response = await send('POST', '/api/me/suggestions/seen', fixture.otherUserCookie, {});
+
+      // Assert
+      expect(response.status).toBe(400);
+    });
+  });
+
   // server/middleware/0.guard.ts, before the session is loaded and before any handler. Every
   // request here is a visitor's: refused by the guard it never reaches the 401 behind it, so
   // the status alone shows which check answered.
@@ -707,10 +999,13 @@ describe('routes', async () => {
     it.each(writeRoutes)('Should_Answer413_When_TheBodyIsOverTheLimitOf $method $path', async ({ method, path }) => {
       // Arrange: one byte more than the route allows, declared honestly.
       const limit = bodyLimitFor(method, path);
-      const contentType = limit.kind === 'json' ? 'application/json' : 'image/jpeg';
 
       // Act
-      const response = await fetch(path, { method, headers: { 'content-type': contentType }, body: new Uint8Array(limit.maxBytes + 1) });
+      const response = await fetch(path, {
+        method,
+        headers: { 'content-type': contentTypeFor(limit) },
+        body: new Uint8Array(limit.maxBytes + 1),
+      });
 
       // Assert
       expect(response.status).toBe(413);
@@ -734,6 +1029,17 @@ describe('routes', async () => {
       async ({ method, path }) => {
         // Act: the one content type a plain HTML form on another site can send JSON in.
         const response = await fetch(path, { method, headers: { 'content-type': 'text/plain' }, body: '{}' });
+
+        // Assert
+        expect(response.status).toBe(415);
+      },
+    );
+
+    it.each(writeRoutes.filter(route => bodyLimitFor(route.method, route.path).kind === 'multipart'))(
+      'Should_Answer415_When_AFormRouteGetsJson $method $path',
+      async ({ method, path }) => {
+        // Act
+        const response = await fetch(path, { method, headers: { 'content-type': 'application/json' }, body: '{}' });
 
         // Assert
         expect(response.status).toBe(415);

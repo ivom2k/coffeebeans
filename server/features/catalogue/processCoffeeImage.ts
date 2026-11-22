@@ -1,4 +1,4 @@
-import { openImage } from '../media/imageDecoder.ts';
+import { encodeImage, openImage } from '../media/imageDecoder.ts';
 
 // A 48-megapixel phone photo fits. The limit is checked against the header before anything is
 // decoded, so a small file that would decode to a huge image (a decompression bomb) is refused.
@@ -20,11 +20,17 @@ export const processCoffeeImage = async (input: Buffer): Promise<ProcessImageRes
     return opened;
   }
 
-  const encode = (bound: number, quality: number) => opened.image.clone()
+  const encode = (bound: number, quality: number) => encodeImage(opened.image.clone()
     .resize(bound, bound, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality })
-    .toBuffer();
+    .webp({ quality }));
+  // The photo first: a file broken past its header fails there, before the thumbnail is tried.
   const photo = await encode(imageBounds.photo, 80);
+  if (photo.kind !== 'encoded') {
+    return photo;
+  }
   const thumbnail = await encode(imageBounds.thumbnail, 75);
-  return { kind: 'processed', image: { photo, thumbnail } };
+  if (thumbnail.kind !== 'encoded') {
+    return thumbnail;
+  }
+  return { kind: 'processed', image: { photo: photo.data, thumbnail: thumbnail.data } };
 };

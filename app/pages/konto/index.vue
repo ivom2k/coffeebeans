@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { Ref } from 'vue';
 
+// In konto/ rather than konto.vue, so /konto/ettepanekud is a page of its own and not a child
+// rendered inside this one.
 const { t } = useI18n();
 const localePath = useLocalePath();
 const { loggedIn, ready, clear } = useUserSession();
@@ -15,8 +17,7 @@ const signOut = async () => {
 };
 </script>
 
-<!-- Later phases add their sections from the canvas: suggestions (7), the data export and
-     account deletion (8). -->
+<!-- Phase 8 adds the data export and account deletion from the canvas. -->
 <template>
   <div class="flex max-w-xl flex-col gap-6">
     <!-- The session is known only in the browser. -->
@@ -40,6 +41,7 @@ const signOut = async () => {
           v-if="loggedIn"
           class="flex flex-col gap-6"
         >
+          <AccountNav />
           <MachineList />
           <div class="overflow-hidden rounded-lg bg-default ring ring-default ring-inset">
             <UButton

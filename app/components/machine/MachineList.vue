@@ -87,6 +87,16 @@ const atLimit = computed(() => !canAddMachine(machines.value.length));
       @click="adding = true"
     />
 
+    <p class="text-sm text-muted">
+      {{ $t('suggestion.machineMissing') }}
+      <NuxtLinkLocale
+        :to="{ path: '/soovita', query: { tyyp: 'masin' } }"
+        class="inline-block py-2.5 font-semibold text-primary"
+      >
+        {{ $t('suggestion.title.MACHINE_MODEL') }}
+      </NuxtLinkLocale>
+    </p>
+
     <MachineAddDrawer v-model:open="adding" />
     <MachineEditDrawer v-model:machine="editing" />
   </section>

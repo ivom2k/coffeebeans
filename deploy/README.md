@@ -172,6 +172,7 @@ Suggestion photos (Phase 7) wait for review in a second named volume, `kohvioad_
 - **See it.** `docker volume ls` lists `kohvioad_media_private` after the first deploy that has it; `docker compose exec app ls -ld /app/media-private` must show the owner `node`, as for `media`.
 - **Check the isolation.** `docker compose config` prints the stack as Compose reads it: `media_private` appears under `app`'s volumes and not under `caddy`'s. `docker inspect kohvioad-caddy-1 --format "{{range .Mounts}}{{.Destination}} {{end}}"` lists what the running Caddy really mounts: `/srv/media`, `/etc/caddy`, `/data` and `/config`, nothing else.
 - **Keep it.** It survives redeploys like the others, and `docker compose down -v` deletes it with them. The files are short-lived by design (deleted at review), so the backups leave it out.
+- **The pending photos.** `docker compose exec app ls -la /app/media-private/suggestion` lists them: one `<32 hex characters>.webp` per suggestion that came with a photo and is still waiting. The name is random, so it says nothing about who sent it; `SELECT id, created_at FROM suggestion WHERE image_path = 'suggestion/<name>.webp';` in DBeaver finds its row. The site takes at most 500 waiting photos (about 200 MB) and 2000 waiting suggestions (`shared/utils/suggestion.ts`); past that, new ones are refused with a 503 until the queue is reviewed (Phase 7.3).
 
 ## What the server refuses
 
@@ -181,12 +182,15 @@ Three layers answer before any endpoint's own code runs. When a request fails, t
 |---|---|---|
 | 403 `Cross-site request refused` | the app (`server/middleware/0.guard.ts`) | A write (anything but GET) that didn't come from a page of https://kohvioad.eu. From `curl`, send no `Origin` header or the site's own. |
 | 411 | the app | A body sent in chunks, without `Content-Length`. Browsers always send the length. |
-| 413 | Caddy, or the app | A body over the route's cap. Caddy: 64 KB, and 16 MB for the admin's photo upload. The app: 32 KiB and 15 MiB (`server/features/security/bodyLimits.ts`). A new upload route needs both raised, or it answers 413 here first. |
-| 415 | the app | JSON sent with a `Content-Type` other than `application/json`. |
+| 413 | Caddy, or the app | A body over the route's cap. Caddy: 64 KB, 16 MB for the admin's photo upload and 7 MB for a suggestion. The app: 32 KiB, 15 MiB and 6 MiB of photo plus 64 KiB of form (`server/features/security/bodyLimits.ts`). A new upload route needs both raised, and its Caddy matcher left out of `@otherBodies`, or it answers 413 here first. |
+| 415 | the app | JSON sent with a `Content-Type` other than `application/json`, or a suggestion sent as anything but `multipart/form-data`. |
+| 408 `Upload too slow` | the app (`server/features/security/uploadRead.ts`) | A suggestion's form took more than 60 seconds to arrive, or the admin's photo more than 120. The connection is closed under the rest of the upload, so it stops holding its receiving place. A client that leaves mid-upload frees its place at once and gets no answer. |
+| 429 `Upload already in progress`, with `Retry-After` | the app (`server/features/security/uploadGate.ts`) | The same account sent a second upload while its first was still arriving. One at a time per account. |
+| 409, 429 or 503 `Suggestion limit reached` | the app | Counted from the table, before the photo is read: 409 for an account with 10 suggestions waiting, 429 for 10 sent in a day, 503 for a full site queue (2000 waiting, or 500 waiting photos for one with a photo). |
 | 429, with `Retry-After` | the app (`server/middleware/3.rateLimit.ts`) | Too many requests from one address or account: 60 searches a minute, 30 rating saves an hour, 5 feedback messages an hour, and so on (`server/features/security/rateLimits.ts`). The counts live in the app's memory, so a restart or deploy clears them. |
 | 429, without `Retry-After` | the app (`server/api/feedback.post.ts`) | A feedback message over a daily cap, counted from the table: 10 a day per sender, 300 a day for the whole site (`shared/utils/feedback.ts`). It doesn't say which. |
 | 503 `Feedback unavailable` | the app | `NUXT_IP_HMAC_KEY` is missing from `.env` or shorter than 32 characters (Feedback, below). |
-| 503 `Too many uploads at once` | the app | More than five photo uploads in flight; they are decoded one at a time. |
+| 503 `Too many uploads at once`, with `Retry-After` | the app | Four suggestion forms are already arriving, or another admin photo is. Each route receives a few at a time, and the photos are decoded one at a time once they have arrived. Many of these with no real traffic behind them are slow uploads from several accounts (MVP plan, Phase 9). |
 
 The rate limiter needs the visitor's address. The app takes it from the `X-Forwarded-For` header only because `compose.yaml` sets `NUXT_TRUST_PROXY=true`, and that is safe only because the app publishes no port: Caddy is the one thing that can reach it. If the app ever gets a `ports:` entry, anyone could send that header themselves.
 

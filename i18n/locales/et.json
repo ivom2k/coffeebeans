@@ -21,6 +21,7 @@
   },
   "account": {
     "title": "Minu konto",
+    "titleWithUnread": "Minu konto, {count} uus vastus | Minu konto, {count} uut vastust",
     "signedInWith": "Sisse logitud Google'iga",
     "signOut": "Logi välja",
     "signedOut": "Logi sisse, et oma kontot näha."
@@ -325,6 +326,90 @@
     "sent": "Aitäh! Sõnum on saadetud.",
     "tooMany": "Oled saatnud palju sõnumeid järjest. Proovi hiljem uuesti.",
     "failed": "Saatmine ebaõnnestus. Proovi uuesti."
+  },
+  "suggestion": {
+    "title": {
+      "COFFEE_BEAN": "Soovita kohvi",
+      "MACHINE_MODEL": "Soovita masinat"
+    },
+    "lead": {
+      "COFFEE_BEAN": "Täida vähemalt üks: nimi, link või hinnasildi foto. Ülejäänu otsime ise üles.",
+      "MACHINE_MODEL": "Kirjuta tootja ja mudel nii, nagu need on masinal või karbil. Kui lisame masina nimekirja, saad selle oma masinate hulka valida."
+    },
+    "signedOutText": "Ettepaneku saatmiseks logi sisse. Nii näed hiljem, mis sellest sai.",
+    "signInTitle": "Logi sisse, et soovitada",
+    "typeGroup": "Mida soovitad",
+    "type": {
+      "COFFEE_BEAN": "Kohv",
+      "MACHINE_MODEL": "Masin"
+    },
+    "name": "Nimi pakil",
+    "namePlaceholder": "Nt Valtorre Crema Scura",
+    "duplicatesTitle": "Võib-olla on see juba kataloogis",
+    "duplicateOpen": "See on see →",
+    "link": "Link tootelehele",
+    "linkInvalid": "Sisesta terve link, mis algab https:// või http://.",
+    "photo": "Hinnasildi foto",
+    "photoCamera": "Pildista hinnasilti",
+    "photoChoose": "Vali pilt",
+    "photoRemove": "Eemalda foto",
+    "photoPreview": "Valitud foto",
+    "photoPrivacy": "Hinnasildil on ribakood, millega kohvi kiiresti üles leiame. Asukohaandmed eemaldatakse ja foto kustutatakse pärast ülevaatust.",
+    "photoTooLarge": "Pilt on liiga suur. Vali väiksem pilt.",
+    "manufacturer": "Tootja",
+    "manufacturerPlaceholder": "Nt Jura",
+    "model": "Mudel",
+    "modelPlaceholder": "Nt E8",
+    "kind": "Masina tüüp",
+    "send": "Saada ettepanek",
+    "needsSomething": "Täida vähemalt üks: nimi, link või foto.",
+    "errors": {
+      "accountLimit": "Sul on juba kümme ettepanekut ülevaatusel. Uue saad saata, kui mõni neist on üle vaadatud.",
+      "tooMany": "Oled saatnud palju ettepanekuid järjest. Proovi hiljem uuesti.",
+      "queueFull": "Ettepanekuid on praegu ülevaatusel väga palju. Proovi mõne päeva pärast uuesti.",
+      "photoQueueFull": "Fotosid on praegu ülevaatusel väga palju. Saada ettepanek ilma fotota või proovi hiljem uuesti.",
+      "busy": "Server on hetkel hõivatud. Proovi mõne hetke pärast uuesti.",
+      "photoUnsupported": "Seda pilti ei saa kasutada. Vali JPEG-, PNG- või WebP-foto.",
+      "invalid": "Ettepanekut ei saanud saata. Kontrolli välju ja proovi uuesti.",
+      "failed": "Saatmine ebaõnnestus. Proovi uuesti."
+    },
+    "sentTitle": "Aitäh! Ettepanek on saadetud",
+    "sentText": "Vaatame selle esimesel võimalusel üle.",
+    "sentWhere": "Vastus ilmub lehele {page}. Kui see on valmis, tekib profiiliikoonile punane täpp.",
+    "backToRanking": "Tagasi pingeritta",
+    "mine": "Minu ettepanekud",
+    "new": "Uus",
+    "newLabel": "Uus ettepanek",
+    "empty": "Sa pole veel ühtegi ettepanekut saatnud.",
+    "loadFailed": "Ettepanekute laadimine ebaõnnestus. Proovi lehte uuesti laadida.",
+    "sentOn": "{type} · saadetud {date}",
+    "photoOnly": "Hinnasildi foto",
+    "unread": "Uus vastus",
+    "unreadCount": "{count} uus | {count} uut",
+    "outcome": {
+      "waiting": "Ootab ülevaatust",
+      "added": "Lisatud kataloogi",
+      "exists": "Juba kataloogis",
+      "rejected": "Ei lisatud"
+    },
+    "rate": "Hinda",
+    "openCoffee": "Ava kohv",
+    "machine": {
+      "added": "{name} on nüüd masinate nimekirjas.",
+      "exists": "{name} oli juba masinate nimekirjas.",
+      "toMachines": "Lisa see oma masinate hulka"
+    },
+    "reasonLabel": "Põhjus:",
+    "note": "Märkus",
+    "reason": {
+      "NOT_WHOLE_BEANS": "Pole terved kohvioad",
+      "NOT_SOLD_IN_ESTONIA": "Eestis ei müüda",
+      "NOT_ENOUGH_INFO": "Liiga vähe infot",
+      "OTHER": "Muu põhjus"
+    },
+    "homeCardTitle": "Ei leidnud oma kohvi?",
+    "homeCardText": "Soovita see kataloogi lisada",
+    "machineMissing": "Sinu masinat pole nimekirjas?"
   },
   "feedbackInbox": {
     "title": "Tagasiside",

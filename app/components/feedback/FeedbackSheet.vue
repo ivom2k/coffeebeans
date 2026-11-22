@@ -4,10 +4,11 @@ import { maxFeedbackLength } from '#shared/utils/feedback';
 
 // The feedback sheet from the UI canvas, opened from the footer of every public page. Those pages
 // are cached for everyone, so it renders closed and the same for all, and talks to the server
-// only when sent. The canvas's "Soovita kohvi" tab joins once that page exists (Phase 7.2).
+// only when sent. The canvas's second tab, "Soovita kohvi", is a link to that page.
 const open = defineModel<boolean>('open', { required: true });
 
 const { t } = useI18n();
+const localePath = useLocalePath();
 const route = useRoute();
 const toast = useToast();
 
@@ -50,6 +51,23 @@ const send = async () => {
     }"
   >
     <template #body>
+      <!-- Looks like the canvas's two tabs; the second leads to the suggestion page. -->
+      <div class="mb-4 flex rounded-md bg-elevated p-1">
+        <span
+          aria-current="true"
+          class="flex h-11 flex-1 items-center justify-center rounded-sm bg-default text-[15px] font-semibold text-highlighted shadow-xs"
+        >
+          {{ $t('feedback.open') }}
+        </span>
+        <UButton
+          :to="localePath('/soovita')"
+          :label="$t('suggestion.title.COFFEE_BEAN')"
+          color="neutral"
+          variant="ghost"
+          class="h-11 flex-1 justify-center text-[15px] text-toned"
+          @click="open = false"
+        />
+      </div>
       <form
         class="relative flex flex-col gap-2"
         @submit.prevent="send"

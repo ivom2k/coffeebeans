@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
 import { bigint, check, index, jsonb, pgTable, timestamp, varchar } from 'drizzle-orm/pg-core';
+import { suggestionReviewReasons, suggestionStatuses, suggestionTypes } from '../../../shared/types/suggestion.ts';
 import { coffeeBean } from './catalogue.ts';
 import { isOneOf, timestamps } from './common.ts';
 import { machineModel } from './machines.ts';
 import { appUser } from './users.ts';
 
-export const suggestionTypes = ['COFFEE_BEAN', 'MACHINE_MODEL'] as const;
-export const suggestionStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'DUPLICATE'] as const;
-export const suggestionReviewReasons = ['NOT_WHOLE_BEANS', 'NOT_SOLD_IN_ESTONIA', 'NOT_ENOUGH_INFO', 'OTHER'] as const;
+// The lists live in shared/, since the API and the author's page use the same codes.
+export { suggestionReviewReasons, suggestionStatuses, suggestionTypes };
 
 // Sign-in only (enforced in the API). The outcome is shown on the user's
 // "Minu ettepanekud" page, so no email is needed.
